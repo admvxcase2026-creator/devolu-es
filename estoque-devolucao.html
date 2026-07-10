@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estoque — Recebimento de Devoluções</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%236D28D9%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 font-family=%22Arial,sans-serif%22 font-weight=%22700%22 fill=%22%23fff%22 text-anchor=%22middle%22>D</text></svg>">
+<style>
+  :root{
+    --bg:#F5F6F8; --card:#FFFFFF; --ink:#1C2430; --sub:#5B6472;
+    --line:#E3E6EA; --accent:#6D28D9; --radius:14px;
+    --ok:#1E9E5A; --warn:#D97706; --bad:#D0342C;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .sub{color:var(--sub);font-size:13.5px;margin:0 0 22px;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  @media(max-width:720px){.cards{grid-template-columns:1fr;}}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;}
+  .stat .num{font-size:26px;font-weight:800;}
+  .stat .label{font-size:12px;color:var(--sub);margin-top:2px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+  .mov-card{border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px;background:#fff;}
+  .mov-card.atrasado{border-color:var(--bad);}
+  .mov-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .mov-head h3{font-size:16px;margin:0 0 2px;}
+  .mov-meta{font-size:12.5px;color:var(--sub);}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap;}
+  .obs-box{background:#FFF8E6;border:1px solid #F0D98C;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#8A6D1A;margin-top:10px;}
+  .items-toggle{font-size:12.5px;color:var(--accent);cursor:pointer;margin-top:10px;display:inline-block;font-weight:600;}
+  .items-table{display:none;margin-top:10px;}
+  .items-table.show{display:block;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--sub);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1px solid var(--line);}
+  td{padding:8px;border-bottom:1px solid var(--line);}
+  .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  button{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+  button.secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line);}
+  button.warn{background:var(--warn);}
+  .empty{color:var(--sub);font-size:13px;padding:30px 0;text-align:center;}
+  label.f{display:block;font-size:11.5px;color:var(--sub);font-weight:600;margin-bottom:4px;}
+  input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13.5px;margin-bottom:10px;}
+  textarea{min-height:80px;resize:vertical;font-family:ui-monospace,monospace;font-size:12.5px;}
+  .radio-row{display:flex;gap:8px;margin-bottom:10px;}
+  .radio-row label{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:9px;text-align:center;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;}
+  .radio-row input{display:none;}
+  .radio-row label:has(input:checked){border-color:var(--accent);background:var(--accent);color:#fff;}
+  .overlay{position:fixed;inset:0;background:rgba(15,20,28,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;max-width:560px;width:100%;max-height:90vh;overflow:auto;}
+  .modal h2{font-size:17px;margin:0 0 4px;}
+  .modal .info{font-size:13px;color:var(--sub);margin-bottom:16px;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .hint{font-size:11.5px;color:var(--sub);margin:-6px 0 8px;}
+  .parsed-preview{background:#FAFBFC;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:140px;overflow:auto;font-size:12px;margin-bottom:10px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:200;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Recebimento de Devoluções</h1>
+  <p class="sub">Volumes de devolução que estão chegando na loja/estoque, por movimento.</p>
+
+  <div class="cards">
+    <div class="stat"><div class="num" id="st-aguardando">—</div><div class="label">Aguardando chegada</div></div>
+    <div class="stat"><div class="num" id="st-atrasado">—</div><div class="label">Atrasados</div></div>
+    <div class="stat"><div class="num" id="st-volumes">—</div><div class="label">Unidades aguardadas</div></div>
+  </div>
+
+  <div id="lista-movimentos"><div class="empty">Carregando…</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: RECEBIDO -->
+<div class="overlay" id="overlay-recebido">
+  <div class="modal">
+    <h2>Confirmar recebimento</h2>
+    <div class="info" id="modal-info"></div>
+
+    <label class="f">Data do recebimento</label>
+    <input type="date" id="r-data">
+
+    <label class="f">Já foi aceito no sistema VX Case?</label>
+    <div class="radio-row">
+      <label><input type="radio" name="r-aceito" value="sim"><span>Sim</span></label>
+      <label><input type="radio" name="r-aceito" value="nao"><span>Não</span></label>
+    </div>
+
+    <label class="f">Número do movimento (confirme o que está no VX Case)</label>
+    <input id="r-numero-movimento" placeholder="Precisa ser igual ao movimento cadastrado">
+
+    <label class="f">Itens avariados (opcional)</label>
+    <p class="hint">Cole código e quantidade, um item por linha. Ex: 25914 2</p>
+    <textarea id="r-avariados" placeholder="25914 2&#10;30021 1"></textarea>
+
+    <label class="f">Itens com embalagem avariada (opcional)</label>
+    <p class="hint">Mesmo formato: código e quantidade por linha.</p>
+    <textarea id="r-embalagem" placeholder="25914 1"></textarea>
+
+    <label class="f">Destino dos itens (opcional)</label>
+    <p class="hint">Cole código e destino por linha. Ex: 25914 Estoque Central</p>
+    <textarea id="r-destino" placeholder="25914 Estoque Central&#10;30021 Descarte"></textarea>
+
+    <label class="f">Observação (opcional)</label>
+    <textarea id="r-obs" style="font-family:inherit;"></textarea>
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('overlay-recebido')">Cancelar</button>
+      <button onclick="confirmarRecebimento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NÃO RECEBIDO NO PRAZO -->
+<div class="overlay" id="overlay-atraso">
+  <div class="modal">
+    <h2>Registrar atraso</h2>
+    <div class="info" id="modal-atraso-info"></div>
+
+    <label class="f">Motivo do atraso</label>
+    <textarea id="a-motivo" style="font-family:inherit;" placeholder="Por que não chegou no prazo?"></textarea>
+
+    <label class="f">Novo prazo</label>
+    <input type="date" id="a-novo-prazo">
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('overlay-atraso')">Cancelar</button>
+      <button class="warn" onclick="confirmarAtraso()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://fevhyllvfhvzzfhwyjuk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzEyMTcsImV4cCI6MjA5NDQ0NzIxN30.GJRgEKW1bVWX1957_bKCTO6aVmR_rXWRCmo9-ZJDPiE';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let modalMovId = null;
+let modalMovNumero = null;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function fmtData(d){
+  if(!d) return '—';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+window.closeModal = function(id){
+  document.getElementById(id).classList.remove('show');
+  modalMovId = null; modalMovNumero = null;
+}
+
+window.toggleItens = function(id){
+  document.getElementById('itens-'+id).classList.toggle('show');
+}
+
+window.openRecebido = function(id, numero, loja){
+  modalMovId = id; modalMovNumero = numero;
+  document.getElementById('modal-info').innerHTML = `Movimento <b>${numero}</b> — ${loja}`;
+  document.getElementById('r-data').value = hoje();
+  document.getElementById('r-numero-movimento').value = '';
+  document.getElementById('r-avariados').value = '';
+  document.getElementById('r-embalagem').value = '';
+  document.getElementById('r-destino').value = '';
+  document.getElementById('r-obs').value = '';
+  document.querySelectorAll('input[name="r-aceito"]').forEach(r=>r.checked=false);
+  document.getElementById('overlay-recebido').classList.add('show');
+}
+
+window.openAtraso = function(id, numero, loja, prazoAtual){
+  modalMovId = id;
+  document.getElementById('modal-atraso-info').innerHTML = `Movimento <b>${numero}</b> — ${loja} · prazo era ${fmtData(prazoAtual)}`;
+  document.getElementById('a-motivo').value = '';
+  document.getElementById('a-novo-prazo').value = '';
+  document.getElementById('overlay-atraso').classList.add('show');
+}
+
+function parsePares(texto){
+  return texto.split('\n').map(l => l.trim()).filter(Boolean).map(linha => {
+    const partes = linha.split(/\s+/);
+    const codigo = partes[0];
+    const resto = partes.slice(1).join(' ');
+    return { codigo, resto };
+  });
+}
+
+window.confirmarRecebimento = async function(){
+  const data_recebimento = document.getElementById('r-data').value;
+  const aceitoEl = document.querySelector('input[name="r-aceito"]:checked');
+  const numero_movimento_confirmado = document.getElementById('r-numero-movimento').value.trim();
+  const observacao_recebimento = document.getElementById('r-obs').value.trim() || null;
+
+  if(!data_recebimento || !aceitoEl || !numero_movimento_confirmado){
+    return alert('Preencha data, se foi aceito no VX Case e o número do movimento.');
+  }
+  if(numero_movimento_confirmado !== modalMovNumero){
+    return alert(`O número informado (${numero_movimento_confirmado}) não confere com o movimento cadastrado (${modalMovNumero}). Verifique antes de salvar.`);
+  }
+
+  // itens avariados / embalagem: código + quantidade
+  const catalogoCache = {};
+  async function buscarDescricao(codigo){
+    if(catalogoCache[codigo] !== undefined) return catalogoCache[codigo];
+    const { data } = await supabase.from('itens_catalogo').select('descricao').eq('codigo', codigo).maybeSingle();
+    catalogoCache[codigo] = data?.descricao || '(sem cadastro)';
+    return catalogoCache[codigo];
+  }
+
+  const avariadosRaw = parsePares(document.getElementById('r-avariados').value);
+  const embalagemRaw = parsePares(document.getElementById('r-embalagem').value);
+  const destinoRaw = parsePares(document.getElementById('r-destino').value);
+
+  const itens_avariados = [];
+  for(const item of avariadosRaw){
+    itens_avariados.push({ codigo: item.codigo, descricao: await buscarDescricao(item.codigo), quantidade: Number(item.resto) || 1 });
+  }
+  const itens_embalagem_avariada = [];
+  for(const item of embalagemRaw){
+    itens_embalagem_avariada.push({ codigo: item.codigo, descricao: await buscarDescricao(item.codigo), quantidade: Number(item.resto) || 1 });
+  }
+  const destino = destinoRaw.map(item => ({ codigo: item.codigo, destino: item.resto || '—' }));
+
+  const { error } = await supabase.from('movimentos').update({
+    status: 'RECEBIDO',
+    data_recebimento,
+    aceito_sistema_vx: aceitoEl.value === 'sim',
+    numero_movimento_confirmado,
+    itens_avariados,
+    itens_embalagem_avariada,
+    destino,
+    observacao_recebimento,
+    updated_at: new Date().toISOString()
+  }).eq('id', modalMovId);
+
+  if(error) return alert(error.message);
+
+  toast('Recebimento registrado');
+  closeModal('overlay-recebido');
+  loadMovimentos();
+}
+
+window.confirmarAtraso = async function(){
+  const motivo_atraso = document.getElementById('a-motivo').value.trim();
+  const novoPrazo = document.getElementById('a-novo-prazo').value;
+  if(!motivo_atraso || !novoPrazo) return alert('Preencha o motivo e o novo prazo.');
+
+  const { data: atual } = await supabase.from('movimentos').select('prazo, historico').eq('id', modalMovId).single();
+  const linha = `— Atrasado (prazo era ${fmtData(atual.prazo)}). Motivo: ${motivo_atraso}. Novo prazo: ${fmtData(novoPrazo)}.`;
+  const novoHistorico = atual.historico ? (atual.historico + '\n' + linha) : linha;
+
+  const { error } = await supabase.from('movimentos').update({
+    status: 'ATRASADO',
+    motivo_atraso,
+    prazo: novoPrazo,
+    historico: novoHistorico,
+    updated_at: new Date().toISOString()
+  }).eq('id', modalMovId);
+
+  if(error) return alert(error.message);
+
+  toast('Atraso registrado, novo prazo definido');
+  closeModal('overlay-atraso');
+  loadMovimentos();
+}
+
+window.loadMovimentos = async function(){
+  const { data: movs } = await supabase.from('movimentos')
+    .select('*, itens_movimento(codigo, descricao, quantidade)')
+    .in('status', ['AGUARDANDO','ATRASADO'])
+    .order('prazo');
+
+  const lista = document.getElementById('lista-movimentos');
+  if(!movs || movs.length === 0){
+    lista.innerHTML = '<div class="empty">Nenhuma devolução aguardando recebimento no momento.</div>';
+    document.getElementById('st-aguardando').textContent = 0;
+    document.getElementById('st-atrasado').textContent = 0;
+    document.getElementById('st-volumes').textContent = 0;
+    return;
+  }
+
+  let totalVol = 0, nAguardando = 0, nAtrasado = 0;
+
+  lista.innerHTML = movs.map(m => {
+    const itens = m.itens_movimento || [];
+    const vol = itens.reduce((a,b)=>a+Number(b.quantidade),0);
+    totalVol += vol;
+    if(m.status === 'ATRASADO') nAtrasado++; else nAguardando++;
+
+    const atrasadoClass = m.status === 'ATRASADO' ? 'atrasado' : '';
+    const badge = m.status === 'ATRASADO'
+      ? `<span class="badge" style="background:var(--bad)">Atrasado</span>`
+      : `<span class="badge" style="background:#8A93A1">Aguardando</span>`;
+
+    return `
+    <div class="mov-card ${atrasadoClass}">
+      <div class="mov-head">
+        <div>
+          <h3>Movimento ${m.numero_movimento} ${badge}</h3>
+          <div class="mov-meta">${m.loja} · ${m.estado} · prazo ${fmtData(m.prazo)} · ${itens.length} itens · <b>${vol} unidades</b></div>
+        </div>
+      </div>
+      ${m.observacao_gestor ? `<div class="obs-box"><b>Observação:</b> ${m.observacao_gestor}</div>` : ''}
+      ${m.motivo_atraso ? `<div class="obs-box" style="background:#FDEDEC;border-color:#F5B7B1;color:#943126;"><b>Atraso anterior:</b> ${m.motivo_atraso}</div>` : ''}
+
+      <span class="items-toggle" onclick="toggleItens('${m.id}')">Ver itens deste movimento</span>
+      <div class="items-table" id="itens-${m.id}">
+        <table>
+          <thead><tr><th>Código</th><th>Descrição</th><th>Quantidade</th></tr></thead>
+          <tbody>${itens.map(i => `<tr><td>${i.codigo}</td><td>${i.descricao||'—'}</td><td>${i.quantidade}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <button onclick="openRecebido('${m.id}', '${m.numero_movimento}', ${JSON.stringify(m.loja).replace(/"/g,'&quot;')})">Marcar como recebido</button>
+        <button class="secondary" onclick="openAtraso('${m.id}', '${m.numero_movimento}', ${JSON.stringify(m.loja).replace(/"/g,'&quot;')}, '${m.prazo}')">Não recebido no prazo</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('st-aguardando').textContent = nAguardando;
+  document.getElementById('st-atrasado').textContent = nAtrasado;
+  document.getElementById('st-volumes').textContent = totalVol;
+}
+
+loadMovimentos();
+</script>
+</body>
+</html>
