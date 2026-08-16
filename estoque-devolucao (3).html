@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estoque — Recebimento de Devoluções</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%236D28D9%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 font-family=%22Arial,sans-serif%22 font-weight=%22700%22 fill=%22%23fff%22 text-anchor=%22middle%22>D</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8; --card:#FFFFFF; --ink:#1C2430; --sub:#5B6472;
+    --line:#E3E6EA; --accent:#6D28D9; --radius:14px;
+    --ok:#1E9E5A; --warn:#D97706; --bad:#D0342C;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .sub{color:var(--sub);font-size:13.5px;margin:0 0 22px;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  @media(max-width:720px){.cards{grid-template-columns:1fr;}}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;}
+  .stat .num{font-size:26px;font-weight:800;}
+  .stat .label{font-size:12px;color:var(--sub);margin-top:2px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+  .mov-card{border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px;background:#fff;}
+  .mov-card.atrasado{border-color:var(--bad);}
+  .mov-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .mov-head h3{font-size:16px;margin:0 0 10px;}
+  .mov-meta{font-size:12.5px;color:var(--sub);}
+  .destino-nome{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .chips-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .chip{background:#F1EFE8;color:var(--sub);font-size:12px;padding:5px 12px;border-radius:999px;}
+  .chip-setor{background:#EDE9FE;color:var(--accent);font-weight:600;}
+  .chips-row-setor{margin-top:6px;}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap;}
+  .obs-box{background:#FFF8E6;border:1px solid #F0D98C;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#8A6D1A;margin-top:10px;}
+  .items-toggle{font-size:12.5px;color:var(--accent);cursor:pointer;margin-top:10px;display:inline-block;font-weight:600;}
+  .items-table{display:none;margin-top:10px;}
+  .items-table.show{display:block;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  .detalhe-itens-table{table-layout:fixed;}
+  .detalhe-itens-table td:nth-child(1),.detalhe-itens-table th:nth-child(1){width:90px;}
+  .detalhe-itens-table td:nth-child(3),.detalhe-itens-table th:nth-child(3){width:60px;}
+  .detalhe-itens-table td:nth-child(4),.detalhe-itens-table th:nth-child(4){width:180px;}
+  th{text-align:left;color:var(--sub);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1px solid var(--line);}
+  td{padding:8px;border-bottom:1px solid var(--line);}
+  .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .click-banner{margin-top:14px;background:var(--accent);color:#fff;text-align:center;padding:14px 16px;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:.02em;cursor:pointer;transition:.15s;}
+  .click-banner:hover{opacity:.9;}
+  .click-banner.atraso{background:var(--bad);}
+  .click-banner span{display:block;font-weight:500;font-size:12px;letter-spacing:0;margin-top:4px;text-transform:none;}
+  button{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+  button.secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line);}
+  button.warn{background:var(--warn);}
+  .empty{color:var(--sub);font-size:13px;padding:30px 0;text-align:center;}
+  label.f{display:block;font-size:11.5px;color:var(--sub);font-weight:600;margin-bottom:4px;}
+  .label-chip{display:inline-block;background:#FCEBEA;color:#A32D2D;font-size:13px;font-weight:600;padding:5px 12px;border-radius:6px;margin-bottom:10px;}
+  input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13.5px;margin-bottom:10px;}
+  textarea{min-height:80px;resize:vertical;font-family:ui-monospace,monospace;font-size:12.5px;}
+  .radio-row{display:flex;gap:8px;margin-bottom:10px;}
+  .radio-row label{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:9px;text-align:center;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;}
+  .radio-row input{display:none;}
+  .radio-row label:has(input:checked){border-color:var(--accent);background:var(--accent);color:#fff;}
+  .overlay{position:fixed;inset:0;background:rgba(15,20,28,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;max-width:760px;width:100%;max-height:90vh;overflow:auto;}
+  .modal h2{font-size:17px;margin:0 0 4px;}
+  .modal .info{font-size:13px;color:var(--sub);margin-bottom:16px;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .hint{font-size:11.5px;color:var(--sub);margin:-6px 0 8px;}
+  .parsed-preview{background:#FAFBFC;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:140px;overflow:auto;font-size:12px;margin-bottom:10px;}
+  .add-item-row{display:grid;grid-template-columns:110px 1fr 80px auto;gap:8px;align-items:end;margin-bottom:8px;}
+  .add-item-row.emb-row{grid-template-columns:100px 1fr 90px 90px auto;}
+  .add-item-row input, .add-item-row select{margin-bottom:0;}
+  .add-item-row button{white-space:nowrap;height:38px;}
+  @media(max-width:520px){.add-item-row{grid-template-columns:1fr 1fr;} .add-item-row.emb-row{grid-template-columns:1fr 1fr;}}
+  .items-list{margin-bottom:6px;}
+  .items-list table{font-size:12.5px;width:100%;table-layout:fixed;}
+  .items-list td{padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .items-list td:nth-child(1){width:70px;}
+  .items-list td:nth-child(2){width:auto;white-space:normal;}
+  .items-list td:nth-child(3){width:70px;}
+  .items-list td:nth-child(4){width:170px;white-space:normal;}
+  .items-list td:nth-child(5){width:24px;text-align:center;}
+  .items-list .rm{color:var(--bad);cursor:pointer;font-weight:700;}
+  .items-list .empty-mini{font-size:12px;color:var(--sub);padding:6px 0;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:200;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Recebimento de Devoluções</h1>
+  <p class="sub">Volumes de devolução que estão chegando na loja/estoque, por movimento.</p>
+
+  <div class="cards">
+    <div class="stat"><div class="num" id="st-aguardando">—</div><div class="label">Aguardando chegada</div></div>
+    <div class="stat"><div class="num" id="st-atrasado">—</div><div class="label">Aguardando confirmação</div></div>
+    <div class="stat"><div class="num" id="st-volumes">—</div><div class="label">Unidades aguardadas</div></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:14.5px;margin:0 0 4px;">Relatório mensal</h3>
+    <p class="hint" style="font-size:12.5px;color:var(--sub);margin:0 0 12px;">Baixa um Excel com tudo que foi recebido no mês: quantidade, de onde veio, volumes e itens avariados.</p>
+    <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+      <div>
+        <label class="f">Mês</label>
+        <input type="month" id="in-mes-relatorio" style="margin-bottom:0;">
+      </div>
+      <button onclick="baixarRelatorioMensal()">Baixar relatório (.xlsx)</button>
+    </div>
+  </div>
+
+  <div id="lista-movimentos"><div class="empty">Carregando…</div></div>
+
+  <div class="sub" style="margin:22px 0 -8px;font-weight:600;color:var(--ink);">Aguardando confirmação de recebimento</div>
+  <div class="cards">
+    <div class="stat"><div class="num" id="st-produtos">—</div><div class="label">Produtos a receber</div></div>
+    <div class="stat"><div class="num" id="st-codigos">—</div><div class="label">Códigos de barras a receber</div></div>
+    <div class="stat"><div class="num" id="st-notas">—</div><div class="label">Notas a receber</div></div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <span class="items-toggle" onclick="toggleRecebidos()" id="toggle-recebidos-label">Ver devoluções já recebidas</span>
+    <div id="lista-recebidos" style="display:none;margin-top:12px;"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: RECEBIDO -->
+<div class="overlay" id="overlay-recebido">
+  <div class="modal">
+    <h2>Confirmar recebimento</h2>
+    <div class="info" id="modal-info"></div>
+
+    <label class="f">Data do recebimento em sistema</label>
+    <input type="date" id="r-data">
+
+    <span class="label-chip">Itens avariados (opcional)</span>
+    <div class="add-item-row emb-row">
+      <div>
+        <label class="f">Código</label>
+        <input id="av-codigo" placeholder="Código" oninput="autoDescricao('av')">
+      </div>
+      <div>
+        <label class="f">Descrição</label>
+        <input id="av-descricao" placeholder="Descrição" readonly>
+      </div>
+      <div>
+        <label class="f">Qtd</label>
+        <input id="av-quantidade" type="number" min="1" value="1">
+      </div>
+      <div>
+        <label class="f">Já ajustado?</label>
+        <select id="av-ajustado">
+          <option value="NAO">Não</option>
+          <option value="SIM">Sim</option>
+        </select>
+      </div>
+      <button type="button" onclick="adicionarItem('avariados')">Adicionar</button>
+    </div>
+    <div class="items-list" id="lista-avariados"></div>
+
+    <span class="label-chip" style="margin-top:16px;">Itens com embalagem avariada (opcional)</span>
+    <div class="add-item-row emb-row">
+      <div>
+        <label class="f">Código</label>
+        <input id="emb-codigo" placeholder="Código" oninput="autoDescricao('emb')">
+      </div>
+      <div>
+        <label class="f">Descrição</label>
+        <input id="emb-descricao" placeholder="Descrição" readonly>
+      </div>
+      <div>
+        <label class="f">Qtd avariada</label>
+        <input id="emb-quantidade" type="number" min="1" value="1">
+      </div>
+      <div>
+        <label class="f">Tem troca?</label>
+        <input id="emb-troca" type="number" min="0" value="0" title="Quantidade que já tem embalagem nova disponível para troca">
+      </div>
+      <button type="button" onclick="adicionarItem('embalagem')">Adicionar</button>
+    </div>
+    <p class="hint">Em "Tem troca?" informe quantas unidades já têm embalagem nova pronta pra troca. Se for menos que a quantidade avariada, o sistema registra o restante como aguardando embalagem chegar.</p>
+    <div class="items-list" id="lista-embalagem"></div>
+
+    <label class="f" style="margin-top:16px;">Observação (opcional)</label>
+    <textarea id="r-obs" style="font-family:inherit;"></textarea>
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('overlay-recebido')">Cancelar</button>
+      <button onclick="confirmarRecebimento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR CHEGADA (FASE 1) -->
+<div class="overlay" id="overlay-chegada">
+  <div class="modal" style="max-width:440px;">
+    <h2>Confirmar chegada</h2>
+    <div class="info" id="modal-chegada-info"></div>
+
+    <label class="f">Data em que a mercadoria chegou</label>
+    <input type="date" id="a-data-chegada">
+    <p class="hint">Nesta etapa você só confirma que a mercadoria chegou. O recebimento (avariados, embalagem etc.) é feito depois.</p>
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal('overlay-chegada')">Cancelar</button>
+      <button onclick="confirmarChegada()">Confirmar chegada</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REABRIR RECEBIMENTO -->
+<div class="overlay" id="overlay-reabrir">
+  <div class="modal" style="max-width:520px;">
+    <h2>Reabrir recebimento</h2>
+    <div class="info" id="modal-reabrir-info"></div>
+
+    <span class="items-toggle" id="reabrir-toggle" onclick="toggleReabrirPreview()">Ver o que já foi adicionado ▸</span>
+    <div id="reabrir-preview" style="display:none;margin-top:8px;"></div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="secondary" onclick="closeModal('overlay-reabrir')">Cancelar</button>
+      <button class="warn" onclick="reabrirConfirmado('limpar')">Limpar e iniciar do zero</button>
+      <button onclick="reabrirConfirmado('manter')">Manter dados</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://fevhyllvfhvzzfhwyjuk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzEyMTcsImV4cCI6MjA5NDQ0NzIxN30.GJRgEKW1bVWX1957_bKCTO6aVmR_rXWRCmo9-ZJDPiE';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let modalMovId = null;
+let modalMovNumero = null;
+let reabrirMov = null;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function hoje(){ return new Date().toISOString().slice(0,10); }
+function fmtData(d){
+  if(!d) return '—';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+const catalogoCache = {};
+async function buscarDescricao(codigo){
+  if(catalogoCache[codigo] !== undefined) return catalogoCache[codigo];
+  const { data } = await supabase.from('itens_catalogo').select('descricao').eq('codigo', codigo).maybeSingle();
+  catalogoCache[codigo] = data?.descricao || '(sem cadastro no catálogo)';
+  return catalogoCache[codigo];
+}
+
+let debounceTimers = {};
+window.autoDescricao = function(prefixo){
+  clearTimeout(debounceTimers[prefixo]);
+  debounceTimers[prefixo] = setTimeout(async () => {
+    const codigo = document.getElementById(prefixo+'-codigo').value.trim();
+    const descField = document.getElementById(prefixo+'-descricao');
+    if(!codigo){ descField.value = ''; return; }
+    descField.value = 'Buscando…';
+    descField.value = await buscarDescricao(codigo);
+  }, 350);
+}
+
+let itensAvariados = [];
+let itensEmbalagem = [];
+
+window.adicionarItem = async function(campo){
+  const prefixo = campo === 'avariados' ? 'av' : 'emb';
+  const codigo = document.getElementById(prefixo+'-codigo').value.trim();
+  const quantidade = Number(document.getElementById(prefixo+'-quantidade').value) || 1;
+  if(!codigo) return alert('Informe o código do item.');
+
+  const descricao = await buscarDescricao(codigo);
+  let item = { codigo, descricao, quantidade };
+
+  if(campo === 'avariados'){
+    const ajustado = document.getElementById('av-ajustado').value;
+    item = { ...item, ajustado };
+    document.getElementById('av-ajustado').value = 'NAO';
+  }
+
+  if(campo === 'embalagem'){
+    const quantidadeTroca = Number(document.getElementById('emb-troca').value) || 0;
+    const pendente = Math.max(quantidade - quantidadeTroca, 0);
+    item = { ...item, quantidade_troca: quantidadeTroca, quantidade_pendente: pendente };
+    document.getElementById('emb-troca').value = '0';
+  }
+
+  if(campo === 'avariados') itensAvariados.push(item);
+  else itensEmbalagem.push(item);
+
+  document.getElementById(prefixo+'-codigo').value = '';
+  document.getElementById(prefixo+'-descricao').value = '';
+  document.getElementById(prefixo+'-quantidade').value = '1';
+  document.getElementById(prefixo+'-codigo').focus();
+
+  renderListaItens(campo);
+}
+
+window.removerItem = function(campo, index){
+  if(campo === 'avariados') itensAvariados.splice(index, 1);
+  else itensEmbalagem.splice(index, 1);
+  renderListaItens(campo);
+}
+
+function renderListaItens(campo){
+  const lista = campo === 'avariados' ? itensAvariados : itensEmbalagem;
+  const el = document.getElementById('lista-'+campo);
+  if(lista.length === 0){ el.innerHTML = '<div class="empty-mini">Nenhum item adicionado ainda.</div>'; return; }
+
+  if(campo === 'avariados'){
+    el.innerHTML = '<table><tbody>' + lista.map((it, i) => `
+      <tr>
+        <td><b>${it.codigo}</b></td>
+        <td style="${it.descricao.includes('sem cadastro') ? 'color:var(--bad)' : ''}">${it.descricao}</td>
+        <td>${it.quantidade}</td>
+        <td>${it.ajustado === 'SIM' ? `<span style="color:var(--ok);font-weight:600;">Ajustado</span>` : `<span style="color:var(--warn);font-weight:600;">Não ajustado</span>`}</td>
+        <td class="rm" onclick="removerItem('${campo}', ${i})">✕</td>
+      </tr>`).join('') + '</tbody></table>';
+  } else {
+    el.innerHTML = '<table><tbody>' + lista.map((it, i) => `
+      <tr>
+        <td><b>${it.codigo}</b></td>
+        <td style="${it.descricao.includes('sem cadastro') ? 'color:var(--bad)' : ''}">${it.descricao}</td>
+        <td>${it.quantidade} avariada(s)</td>
+        <td>${it.quantidade_pendente > 0
+          ? `<span style="color:var(--warn);font-weight:600;">${it.quantidade_pendente} aguardando embalagem</span>`
+          : `<span style="color:var(--ok);font-weight:600;">Troca completa</span>`}</td>
+        <td class="rm" onclick="removerItem('${campo}', ${i})">✕</td>
+      </tr>`).join('') + '</tbody></table>';
+  }
+}
+
+window.closeModal = function(id){
+  document.getElementById(id).classList.remove('show');
+  modalMovId = null; modalMovNumero = null;
+  if(id === 'overlay-reabrir') reabrirMov = null;
+}
+
+window.toggleItens = function(id){
+  document.getElementById('itens-'+id).classList.toggle('show');
+}
+
+window.openRecebido = async function(id, numero, loja){
+  modalMovId = id; modalMovNumero = numero;
+
+  // Busca dados já existentes (movimento novo vem vazio; reaberto com "manter" vem preenchido)
+  const { data: m } = await supabase.from('movimentos')
+    .select('itens_avariados, itens_embalagem_avariada, observacao_recebimento, data_recebimento, data_chegada, data_atraso_informada')
+    .eq('id', id).single();
+
+  const dataChegada = m?.data_chegada || m?.data_atraso_informada;
+  document.getElementById('modal-info').innerHTML =
+    `Movimento <b>${numero}</b> — ${loja}` + (dataChegada ? ` · chegou em ${fmtData(dataChegada)}` : '');
+
+  document.getElementById('r-data').value = m?.data_recebimento || hoje();
+  document.getElementById('r-obs').value = m?.observacao_recebimento || '';
+  document.getElementById('av-codigo').value = '';
+  document.getElementById('av-descricao').value = '';
+  document.getElementById('av-quantidade').value = '1';
+  document.getElementById('av-ajustado').value = 'NAO';
+  document.getElementById('emb-codigo').value = '';
+  document.getElementById('emb-descricao').value = '';
+  document.getElementById('emb-quantidade').value = '1';
+  document.getElementById('emb-troca').value = '0';
+  itensAvariados = Array.isArray(m?.itens_avariados) ? [...m.itens_avariados] : [];
+  itensEmbalagem = Array.isArray(m?.itens_embalagem_avariada) ? [...m.itens_embalagem_avariada] : [];
+  renderListaItens('avariados');
+  renderListaItens('embalagem');
+  document.getElementById('overlay-recebido').classList.add('show');
+}
+
+window.openChegada = function(id, numero, loja, prazoAtual, atrasado){
+  modalMovId = id;
+  document.getElementById('modal-chegada-info').innerHTML =
+    `Movimento <b>${numero}</b> — ${loja} · prazo ${fmtData(prazoAtual)}` + (atrasado ? ' · <b style="color:var(--bad)">em atraso</b>' : '');
+  document.getElementById('a-data-chegada').value = hoje();
+  document.getElementById('overlay-chegada').classList.add('show');
+}
+
+window.confirmarRecebimento = async function(){
+  const data_recebimento = document.getElementById('r-data').value;
+  const observacao_recebimento = document.getElementById('r-obs').value.trim() || null;
+
+  if(!data_recebimento){
+    return alert('Preencha a data do recebimento em sistema.');
+  }
+
+  const { error } = await supabase.from('movimentos').update({
+    status: 'RECEBIDO',
+    data_recebimento,
+    itens_avariados: itensAvariados,
+    itens_embalagem_avariada: itensEmbalagem,
+    observacao_recebimento,
+    updated_at: new Date().toISOString()
+  }).eq('id', modalMovId);
+
+  if(error) return alert(error.message);
+
+  toast('Recebimento registrado');
+  closeModal('overlay-recebido');
+  loadMovimentos();
+}
+
+window.confirmarChegada = async function(){
+  const data_chegada = document.getElementById('a-data-chegada').value;
+  if(!data_chegada) return alert('Informe a data que a mercadoria chegou.');
+
+  const { data: atual } = await supabase.from('movimentos').select('prazo, historico').eq('id', modalMovId).single();
+  const atrasada = data_chegada > atual.prazo;
+  const linha = `— Chegada confirmada em ${fmtData(data_chegada)}` + (atrasada ? ` (prazo era ${fmtData(atual.prazo)}).` : '.');
+  const novoHistorico = atual.historico ? (atual.historico + '\n' + linha) : linha;
+
+  const { error } = await supabase.from('movimentos').update({
+    status: 'CHEGOU',
+    data_chegada,
+    data_atraso_informada: data_chegada,
+    historico: novoHistorico,
+    updated_at: new Date().toISOString()
+  }).eq('id', modalMovId);
+
+  if(error) return alert(error.message);
+
+  toast('Chegada confirmada — agora é só dar o recebimento');
+  closeModal('overlay-chegada');
+  loadMovimentos();
+}
+
+window.loadMovimentos = async function(){
+  const { data: movs } = await supabase.from('movimentos')
+    .select('*, itens_movimento(codigo, descricao, quantidade)')
+    .in('status', ['AGUARDANDO','ATRASADO','CHEGOU'])
+    .order('prazo');
+
+  const lista = document.getElementById('lista-movimentos');
+  if(!movs || movs.length === 0){
+    lista.innerHTML = '<div class="empty">Nenhuma devolução aguardando recebimento no momento.</div>';
+    document.getElementById('st-aguardando').textContent = 0;
+    document.getElementById('st-atrasado').textContent = 0;
+    document.getElementById('st-volumes').textContent = 0;
+    document.getElementById('st-produtos').textContent = 0;
+    document.getElementById('st-codigos').textContent = 0;
+    document.getElementById('st-notas').textContent = 0;
+    return;
+  }
+
+  let totalVol = 0, nAguardandoChegada = 0, nAguardandoReceb = 0;
+  let nRecebProdutos = 0, nRecebUnidades = 0;
+  const hojeStr = hoje();
+
+  lista.innerHTML = movs.map(m => {
+    const itens = m.itens_movimento || [];
+    const vol = itens.reduce((a,b)=>a+Number(b.quantidade),0);
+    totalVol += vol;
+
+    // Fase 1 = chegada (status AGUARDANDO) · Fase 2 = recebimento (status CHEGOU, ou ATRASADO legado)
+    const fase = m.status === 'AGUARDANDO' ? 'chegada' : 'recebimento';
+    const atrasadoChegada = fase === 'chegada' && hojeStr > m.prazo;
+    if(fase === 'chegada') nAguardandoChegada++;
+    else { nAguardandoReceb++; nRecebProdutos += itens.length; nRecebUnidades += vol; }
+    const lojaJson = JSON.stringify(m.loja).replace(/"/g,'&quot;');
+    // Nome do destino/loja que enviou; se destino_nome vier vazio ou "Selecione…", cai no código da Filial
+    const nomeDestino = (m.destino_nome && !m.destino_nome.includes('Selecione')) ? m.destino_nome : (m.loja || 'Destino não informado');
+
+    let badge;
+    if(fase === 'recebimento') badge = `<span class="badge" style="background:var(--ok)">Chegou</span>`;
+    else if(atrasadoChegada) badge = `<span class="badge" style="background:var(--bad)">Atrasado</span>`;
+    else badge = `<span class="badge" style="background:#8A93A1">Aguardando chegada</span>`;
+
+    let acaoHtml = '';
+    if(fase === 'chegada'){
+      acaoHtml = `
+        <div class="click-banner ${atrasadoChegada ? 'atraso' : ''}" onclick="openChegada('${m.id}', '${m.numero_movimento}', ${lojaJson}, '${m.prazo}', ${atrasadoChegada})">
+          ${atrasadoChegada ? 'MERCADORIA EM ATRASO — CONFIRMAR CHEGADA' : 'CONFIRMAR CHEGADA'}
+          <span>Informe a data em que a mercadoria chegou</span>
+        </div>`;
+    } else {
+      acaoHtml = `
+        <div class="click-banner" onclick="openRecebido('${m.id}', '${m.numero_movimento}', ${lojaJson})">
+          DAR RECEBIMENTO
+          <span>Preencha avariados, embalagem e a data do recebimento</span>
+        </div>`;
+    }
+
+    return `
+    <div class="mov-card ${atrasadoChegada ? 'atrasado' : ''}">
+      <div class="mov-head">
+        <div>
+          <h3>${nomeDestino} ${badge}</h3>
+          <div class="chips-row">
+            <span class="chip">Mov. ${m.numero_movimento}</span>
+            <span class="chip">Prazo ${fmtData(m.prazo)}</span>
+            <span class="chip">${itens.length} itens</span>
+            <span class="chip"><b>${vol}</b> unidades</span>
+            ${m.volumes_esperados ? `<span class="chip"><b>${m.volumes_esperados}</b> volume${m.volumes_esperados > 1 ? 's' : ''}</span>` : ''}
+          </div>
+          ${m.volumes_esperados && (m.distribuicao_setores||[]).length > 0 ? `
+          <div class="mov-meta" style="margin-top:10px;">Distribuição dos volumes:</div>
+          <div class="chips-row chips-row-setor">
+            <span class="chip chip-setor">Estoque Geral · ${m.volumes_esperados - (m.distribuicao_setores||[]).reduce((a,b)=>a+Number(b.quantidade),0)}</span>
+            ${(m.distribuicao_setores||[]).map(s => `<span class="chip chip-setor">${s.setor} · ${s.quantidade}</span>`).join('')}
+          </div>` : ''}
+        </div>
+      </div>
+      ${m.observacao_gestor ? `<div class="obs-box"><b>Observação:</b> ${m.observacao_gestor}</div>` : ''}
+      ${fase === 'recebimento' ? `<div class="obs-box" style="background:#EAF3FF;border-color:#B7D3F5;color:#1B4E7E;"><b>Chegou em ${fmtData(m.data_chegada || m.data_atraso_informada)}.</b> Falta dar o recebimento.</div>` : ''}
+
+      <span class="items-toggle" onclick="toggleItens('${m.id}')">Ver itens deste movimento ▸</span>
+      <div class="items-table" id="itens-${m.id}">
+        <table>
+          <thead><tr><th>Código</th><th>Descrição</th><th>Quantidade</th></tr></thead>
+          <tbody>${itens.map(i => `<tr><td>${i.codigo}</td><td>${i.descricao||'—'}</td><td>${i.quantidade}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+
+      ${acaoHtml}
+    </div>`;
+  }).join('');
+
+  document.getElementById('st-aguardando').textContent = nAguardandoChegada;
+  document.getElementById('st-atrasado').textContent = nAguardandoReceb;
+  document.getElementById('st-volumes').textContent = totalVol;
+  document.getElementById('st-produtos').textContent = nRecebProdutos;
+  document.getElementById('st-codigos').textContent = nRecebUnidades;
+  document.getElementById('st-notas').textContent = nAguardandoReceb;
+}
+
+window.baixarRelatorioMensal = async function(){
+  const mes = document.getElementById('in-mes-relatorio').value;
+  if(!mes) return alert('Selecione o mês.');
+
+  const inicio = mes + '-01';
+  const [ano, mesNum] = mes.split('-').map(Number);
+  const fimDate = new Date(ano, mesNum, 1);
+  const fim = fimDate.toISOString().slice(0,10);
+
+  const { data: movs } = await supabase.from('movimentos')
+    .select('*, itens_movimento(quantidade)')
+    .eq('status', 'RECEBIDO')
+    .gte('data_recebimento', inicio)
+    .lt('data_recebimento', fim)
+    .order('data_recebimento');
+
+  if(!movs || movs.length === 0){
+    alert('Nenhuma devolução recebida nesse mês.');
+    return;
+  }
+
+  const linhas = movs.map(m => {
+    const totalUnidades = (m.itens_movimento||[]).reduce((a,b)=>a+Number(b.quantidade),0);
+    const setoresTexto = (m.distribuicao_setores||[]).map(s => `${s.setor}: ${s.quantidade}`).join(', ');
+    const pendenteEmbalagem = (m.itens_embalagem_avariada||[]).reduce((a,b)=>a+Number(b.quantidade_pendente||0),0);
+    return {
+      'Movimento': m.numero_movimento,
+      'Filial': m.loja,
+      'UF': m.estado,
+      'Data recebimento': fmtData(m.data_recebimento),
+      'Volumes esperados': m.volumes_esperados || '',
+      'Distribuição por setor': setoresTexto,
+      'Itens (tipos)': (m.itens_movimento||[]).length,
+      'Unidades totais': totalUnidades,
+      'Itens avariados': (m.itens_avariados||[]).length,
+      'Itens embalagem avariada': (m.itens_embalagem_avariada||[]).length,
+      'Pendente troca embalagem': pendenteEmbalagem,
+      'Observação recebimento': m.observacao_recebimento || ''
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Devoluções');
+  XLSX.writeFile(wb, `relatorio-devolucoes-${mes}.xlsx`);
+}
+
+let recebidosCarregados = false;
+window.toggleRecebidos = async function(){
+  const el = document.getElementById('lista-recebidos');
+  const label = document.getElementById('toggle-recebidos-label');
+  const abrindo = el.style.display === 'none';
+  el.style.display = abrindo ? 'block' : 'none';
+  label.textContent = abrindo ? 'Ocultar devoluções recebidas' : 'Ver devoluções já recebidas';
+  if(abrindo && !recebidosCarregados){
+    await loadRecebidos();
+    recebidosCarregados = true;
+  }
+}
+
+function renderItensDetalheEstoque(lista, tipo){
+  if(!lista || lista.length === 0) return `<p class="hint" style="margin:4px 0;">Nenhum item ${tipo === 'av' ? 'avariado' : 'com embalagem avariada'} registrado.</p>`;
+  return `<table class="detalhe-itens-table" style="margin-top:6px;"><thead><tr><th>Código</th><th>Descrição</th><th>Qtd</th><th>Situação</th></tr></thead><tbody>` +
+    lista.map(it => `<tr>
+      <td><b>${it.codigo}</b></td>
+      <td>${it.descricao || '—'}</td>
+      <td>${it.quantidade}</td>
+      <td>${tipo === 'av'
+        ? (it.ajustado === 'SIM' ? `<span style="color:var(--ok);font-weight:600;">Ajustado</span>` : `<span style="color:var(--warn);font-weight:600;">Não ajustado</span>`)
+        : ((it.quantidade_pendente||0) > 0 ? `<span style="color:var(--warn);font-weight:600;">${it.quantidade_pendente} aguardando embalagem</span>` : `<span style="color:var(--ok);font-weight:600;">Troca completa</span>`)}</td>
+    </tr>`).join('') + '</tbody></table>';
+}
+
+window.toggleDetalheRecebido = function(id){
+  const el = document.getElementById('detalhe-recebido-'+id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+window.reabrir = async function(id){
+  const { data: m } = await supabase.from('movimentos')
+    .select('numero_movimento, data_recebimento, observacao_recebimento, itens_avariados, itens_embalagem_avariada')
+    .eq('id', id).single();
+
+  reabrirMov = { id };
+  const av = Array.isArray(m?.itens_avariados) ? m.itens_avariados : [];
+  const emb = Array.isArray(m?.itens_embalagem_avariada) ? m.itens_embalagem_avariada : [];
+  const temDados = av.length > 0 || emb.length > 0 || !!m?.observacao_recebimento;
+
+  // Nada além da data lançado → reabre direto, sem perguntar
+  if(!temDados){ await reabrirConfirmado('manter'); return; }
+
+  document.getElementById('modal-reabrir-info').innerHTML =
+    `Movimento <b>${m.numero_movimento}</b> — recebido em ${fmtData(m.data_recebimento)}.<br>Você adicionou dados nesse recebimento. Deseja manter esses dados ou limpar e iniciar do zero?`;
+  document.getElementById('reabrir-preview').style.display = 'none';
+  document.getElementById('reabrir-toggle').textContent = 'Ver o que já foi adicionado ▸';
+  document.getElementById('reabrir-preview').innerHTML =
+    `<p class="hint" style="margin:6px 0 2px;"><b>Itens avariados</b></p>${renderItensDetalheEstoque(av,'av')}` +
+    `<p class="hint" style="margin:10px 0 2px;"><b>Itens com embalagem avariada</b></p>${renderItensDetalheEstoque(emb,'emb')}` +
+    (m.observacao_recebimento ? `<div class="obs-box" style="margin-top:10px;">Obs: ${m.observacao_recebimento}</div>` : '');
+  document.getElementById('overlay-reabrir').classList.add('show');
+}
+
+window.toggleReabrirPreview = function(){
+  const el = document.getElementById('reabrir-preview');
+  const t = document.getElementById('reabrir-toggle');
+  const abrindo = el.style.display === 'none';
+  el.style.display = abrindo ? 'block' : 'none';
+  t.textContent = abrindo ? 'Ocultar o que já foi adicionado ▾' : 'Ver o que já foi adicionado ▸';
+}
+
+window.reabrirConfirmado = async function(modo){
+  if(!reabrirMov) return;
+  const id = reabrirMov.id;
+  const patch = { status: 'CHEGOU', data_recebimento: null, updated_at: new Date().toISOString() };
+  if(modo === 'limpar'){
+    patch.itens_avariados = [];
+    patch.itens_embalagem_avariada = [];
+    patch.observacao_recebimento = null;
+  }
+  const { error } = await supabase.from('movimentos').update(patch).eq('id', id);
+  if(error) return alert(error.message);
+
+  toast(modo === 'limpar' ? 'Reaberto — dados limpos' : 'Reaberto — dados mantidos');
+  closeModal('overlay-reabrir');
+  loadMovimentos();
+  if(recebidosCarregados) loadRecebidos();
+}
+
+async function loadRecebidos(){
+  const { data: movs } = await supabase.from('movimentos')
+    .select('*')
+    .eq('status', 'RECEBIDO')
+    .order('data_recebimento', {ascending:false})
+    .limit(30);
+
+  const el = document.getElementById('lista-recebidos');
+  if(!movs || movs.length === 0){
+    el.innerHTML = '<div class="empty">Nenhuma devolução recebida ainda.</div>';
+    return;
+  }
+
+  el.innerHTML = movs.map(m => `
+    <div class="mov-card" style="cursor:pointer;" onclick="toggleDetalheRecebido('${m.id}')">
+      <div class="mov-head">
+        <div>
+          <div class="destino-nome">${m.destino_nome || 'Destino não informado'}</div>
+          <h3>Movimento ${m.numero_movimento} <span class="badge" style="background:var(--ok)">Recebido</span></h3>
+          <div class="mov-meta">Recebido em ${fmtData(m.data_recebimento)}${m.data_chegada || m.data_atraso_informada ? ` · chegou em ${fmtData(m.data_chegada || m.data_atraso_informada)}` : ''}</div>
+        </div>
+        <button class="secondary" onclick="event.stopPropagation(); reabrir('${m.id}')">Reabrir</button>
+      </div>
+      <div id="detalhe-recebido-${m.id}" style="display:none;margin-top:10px;">
+        ${m.observacao_recebimento ? `<div class="obs-box">Obs: ${m.observacao_recebimento}</div>` : ''}
+        <p class="hint" style="margin:10px 0 2px;"><b>Itens avariados</b></p>
+        ${renderItensDetalheEstoque(m.itens_avariados, 'av')}
+        <p class="hint" style="margin:10px 0 2px;"><b>Itens com embalagem avariada</b></p>
+        ${renderItensDetalheEstoque(m.itens_embalagem_avariada, 'emb')}
+      </div>
+    </div>`).join('');
+}
+
+loadMovimentos();
+
+supabase.channel('devolucao-estoque-realtime')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'movimentos' }, () => {
+    loadMovimentos();
+    if(recebidosCarregados) loadRecebidos();
+  })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'itens_movimento' }, loadMovimentos)
+  .subscribe();
+</script>
+</body>
+</html>
