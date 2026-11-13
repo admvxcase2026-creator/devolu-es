@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devolução de Produtos: Painel</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%236D28D9%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 font-family=%22Arial,sans-serif%22 font-weight=%22700%22 fill=%22%23fff%22 text-anchor=%22middle%22>D</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8; --card:#FFFFFF; --ink:#1C2430; --sub:#5B6472; --line:#E3E6EA; --accent:#6D28D9; --acs:#EDE9FE; --radius:14px;
+    --ok:#1E9E5A; --oks:#E3F6EC; --warn:#D97706; --bad:#D0342C; --bads:#FCE9E7; --blue:#1D6FD1; --blues:#E6F0FC;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .sub{color:var(--sub);font-size:13.5px;margin:0 0 18px;}
+  .aviso{background:var(--bads);border:1px solid #F2B8B3;color:#9A2820;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:16px;}
+  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);}
+  .tab{padding:10px 16px;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;}
+  .tab.active{color:var(--accent);border-color:var(--accent);}
+  .panel{display:none;} .panel.active{display:block;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  @media(max-width:800px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:var(--radius);padding:14px 16px;cursor:pointer;text-align:left;font:inherit;color:inherit;}
+  .kpi b{font-size:28px;font-weight:800;display:block;line-height:1.1;} .kpi span{font-size:12px;color:var(--sub);}
+  .kpi.bad{border-left-color:var(--bad);} .kpi.bad b{color:var(--bad);} .kpi.blue{border-left-color:var(--blue);} .kpi.blue b{color:var(--blue);}
+  .kpi.gray{border-left-color:#8A93A1;} .kpi.ok{border-left-color:var(--ok);}
+  .kpi.sel{box-shadow:0 0 0 2px var(--accent) inset;}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+  .bar input[type=search],.bar input[type=month]{margin:0;}
+  .search{flex:1;min-width:240px;}
+  .chip{background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--sub);cursor:pointer;}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);}
+  .pad{padding:20px;}
+  input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;margin-bottom:12px;background:#fff;color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  textarea{min-height:80px;resize:vertical;}
+  label.f{display:block;font-size:11.5px;color:var(--sub);font-weight:700;margin-bottom:5px;}
+  button{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+  button.secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line);}
+  button.small{padding:6px 10px;font-size:12px;} button.danger{background:var(--bad);}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--sub);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:10px 14px;border-bottom:1px solid var(--line);}
+  td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child>td{border-bottom:none;}
+  tr.lin{cursor:pointer;} tr.lin:hover td{background:#FAFAFC;}
+  .mv b{font-size:14px;} .mv small{display:block;color:var(--sub);font-size:12px;margin-top:2px;}
+  .pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;margin-top:4px;}
+  .p-gray{background:#EEF0F3;color:#5B6472;} .p-bad{background:var(--bads);color:var(--bad);} .p-blue{background:var(--blues);color:var(--blue);} .p-ok{background:var(--oks);color:var(--ok);} .p-ac{background:var(--acs);color:var(--accent);}
+  .late{color:var(--bad);font-size:11.5px;font-weight:700;display:block;margin-top:2px;}
+  .steps3{display:flex;align-items:center;gap:4px;} .steps3 i{width:22px;height:6px;border-radius:3px;background:#DDE1E7;display:block;} .steps3 i.d{background:var(--accent);}
+  .etp{font-size:11.5px;color:var(--sub);margin-top:4px;}
+  .vol{font-size:12.5px;color:var(--sub);} .vol b{color:var(--ink);}
+  .empty{color:var(--sub);font-size:13px;padding:26px 0;text-align:center;}
+  .detail{background:#FAFBFC;font-size:12.5px;color:var(--sub);padding:14px 18px;}
+  .detail b{color:var(--ink);} .detail table{font-size:12.5px;margin-top:8px;} .detail th{padding:6px 8px;} .detail td{padding:7px 8px;}
+  .detail .acts{display:flex;gap:8px;margin-top:12px;}
+  .itens-box{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;}
+  /* novo movimento */
+  .stepper{display:flex;margin-bottom:18px;}
+  .st{flex:1;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--sub);cursor:default;}
+  .st .n{width:28px;height:28px;border-radius:50%;background:#E3E6EA;display:grid;place-items:center;font-size:13px;flex:none;}
+  .st.dn{cursor:pointer;} .st.dn .n{background:var(--ok);color:#fff;} .st.on{color:var(--ink);} .st.on .n{background:var(--accent);color:#fff;}
+  .st .ln{flex:1;height:2px;background:var(--line);margin:0 12px;}
+  .nmgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;} @media(max-width:900px){.nmgrid{grid-template-columns:1fr;}}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:700px){.g2{grid-template-columns:1fr;} .g4{grid-template-columns:1fr 1fr;}}
+  .setor{background:#FAFBFC;border:1.5px solid var(--line);border-radius:12px;padding:10px;text-align:center;}
+  .setor input{text-align:center;font-size:22px;font-weight:800;margin:0 0 4px;padding:6px;border:none;background:transparent;}
+  .setor span{font-size:12px;color:var(--sub);font-weight:700;display:block;}
+  .setor.geral{background:var(--acs);border-color:#D4C8F8;} .setor.geral b{font-size:22px;color:var(--accent);display:block;padding:6px;}
+  .hint{font-size:12px;margin:-6px 0 12px;color:var(--sub);} .hint.ok{color:var(--ok);font-weight:600;} .hint.bad{color:var(--bad);font-weight:600;}
+  .sum h4{margin:0 0 10px;font-size:14px;} .sum .l{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--line);} .sum .l span{color:var(--sub);} .sum .l b{text-align:right;}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;}
+  .drop{border:2px dashed #CFC3F3;background:#FAF8FF;border-radius:12px;padding:18px;text-align:center;font-size:13px;color:var(--accent);font-weight:700;cursor:pointer;margin-bottom:12px;}
+  .arq{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;} .arq h4{font-size:13px;margin:0 0 8px;}
+  .prev{max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .subtot{font-size:12px;font-weight:600;color:var(--sub);margin-top:6px;}
+  .sublink{display:flex;gap:8px;margin-bottom:14px;}
+  .overlay{position:fixed;inset:0;background:rgba(15,20,28,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;} .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px;max-width:640px;width:100%;max-height:92vh;overflow:auto;}
+  .modal h2{font-size:18px;margin:0 0 14px;} .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:200;} .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Devolução de produtos</h1>
+  <p class="sub">Crie os movimentos e acompanhe cada um até o recebimento.</p>
+  <div id="aviso"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="mov">Movimentos</div>
+    <div class="tab" data-tab="novo">Novo movimento</div>
+    <div class="tab" data-tab="cad">Cadastros</div>
+  </div>
+
+  <!-- MOVIMENTOS -->
+  <div class="panel active" id="panel-mov">
+    <div class="kpis">
+      <button class="kpi gray" data-f="caminho"><b id="k-caminho">·</b><span>A caminho</span></button>
+      <button class="kpi bad" data-f="atraso"><b id="k-atraso">·</b><span>Em atraso</span></button>
+      <button class="kpi blue" data-f="chegaram"><b id="k-chegaram">·</b><span>Chegaram, falta dar recebimento</span></button>
+      <button class="kpi ok" data-f="recebidos"><b id="k-recebidos">·</b><span>Recebidos no mês</span></button>
+    </div>
+    <div class="bar">
+      <input class="search" type="search" id="busca" placeholder="Buscar por número do movimento, destino ou filial" oninput="onBusca()">
+      <span class="chip on" data-f="todos">Todos</span>
+      <span class="chip" data-f="caminho">A caminho</span>
+      <span class="chip" data-f="atraso">Em atraso</span>
+      <span class="chip" data-f="chegaram">Chegaram</span>
+      <span class="chip" data-f="recebidos">Recebidos</span>
+      <span class="chip" data-f="estoque">Lançados pelo estoque</span>
+    </div>
+    <div class="bar">
+      <input type="month" id="in-mes-relatorio" style="width:auto;">
+      <button class="secondary" onclick="baixarRelatorioMensal()">Baixar relatório do mês (.xlsx)</button>
+      <span style="flex:1"></span>
+      <button onclick="irTab('novo')">+ Novo movimento</button>
+    </div>
+    <div class="card"><table>
+      <thead><tr><th>Movimento</th><th>Volumes</th><th>Prazo</th><th>Etapa</th><th>Itens</th></tr></thead>
+      <tbody id="tbl-mov"><tr><td colspan="5" class="empty">Carregando…</td></tr></tbody>
+    </table></div>
+    <div style="text-align:center;margin-top:12px;"><button class="secondary" id="btn-mais" style="display:none" onclick="maisMov()">Carregar mais</button></div>
+  </div>
+
+  <!-- NOVO MOVIMENTO -->
+  <div class="panel" id="panel-novo"></div>
+
+  <!-- CADASTROS -->
+  <div class="panel" id="panel-cad"></div>
+</div>
+
+<!-- MODAL EDITAR MOVIMENTO -->
+<div class="overlay" id="ov-edit"><div class="modal" id="ed-box"></div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://fevhyllvfhvzzfhwyjuk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzEyMTcsImV4cCI6MjA5NDQ0NzIxN30.GJRgEKW1bVWX1957_bKCTO6aVmR_rXWRCmo9-ZJDPiE';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- utilidades ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
+// data de HOJE no fuso do aparelho (toISOString usa UTC e passava para o dia seguinte depois das 21h)
+function hoje(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtData(d){ if(!d) return '·'; const [y,m,day]=String(d).slice(0,10).split('-'); return `${day}/${m}/${y}`; }
+function fmtDM(d){ if(!d) return '·'; const [,m,day]=String(d).slice(0,10).split('-'); return `${day}/${m}`; }
+function diasEntre(a,b){ return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5); }
+function norm(s){ return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+const SETORES = [['Quotes','quotes'],['Infraestrutura','infra'],['Merchandising','merch'],['Auditoria','auditoria']];
+const ABREV = {Infraestrutura:'Infra', Merchandising:'Merch'};
+
+function etapa(m){ if(m.status==='RECEBIDO') return 3; if(m.status==='CHEGOU'||m.status==='ATRASADO') return 2; return 1; }
+function atrasoDias(m){ return (etapa(m)===1 && m.prazo && hoje()>m.prazo) ? diasEntre(m.prazo,hoje()) : 0; }
+function setoresDe(m){ return Array.isArray(m.distribuicao_setores) ? m.distribuicao_setores : []; }
+function geralDe(m){ const t=Number(m.volumes_esperados)||0; if(!t) return null; return t - setoresDe(m).reduce((a,b)=>a+Number(b.quantidade||0),0); }
+function volumesTxt(m){
+  if(m.origem==='estoque') return m.volumes_recebidos ? `<b>${m.volumes_recebidos}</b> vol recebidos` : '·';
+  const t=Number(m.volumes_esperados)||0; if(!t) return '·';
+  const ss=setoresDe(m);
+  if(!ss.length) return `<b>${t}</b> vol · tudo Estoque Geral`;
+  return `<b>${t}</b> vol · Geral ${geralDe(m)}, `+ss.map(s=>`${esc(ABREV[s.setor]||s.setor)} ${s.quantidade}`).join(', ');
+}
+
+/* ---------- abas ---------- */
+window.irTab = function(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  ['mov','novo','cad'].forEach(k=>$('panel-'+k).classList.toggle('active',k===t));
+  if(t==='mov') refreshMov();
+  if(t==='novo') renderNM();
+  if(t==='cad') renderCad();
+};
+document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>irTab(x.dataset.tab)));
+
+/* ---------- verificação do banco (colunas novas) ---------- */
+async function checaSchema(){
+  const { error } = await supabase.from('movimentos').select('origem,volumes_recebidos').limit(1);
+  if(error) $('aviso').innerHTML = `<div class="aviso"><b>Falta atualizar o banco.</b> Rode o arquivo <code>migracao-devolucao.sql</code> no SQL Editor do Supabase (cria as colunas "origem" e "volumes_recebidos") e recarregue esta página.</div>`;
+}
+
+/* ================= MOVIMENTOS ================= */
+const MOV = { filtro:'todos', busca:'', lim:100, rows:[], itens:{} };
+const COLS = 'id,numero_movimento,loja,estado,destino_nome,prazo,status,origem,volumes_esperados,volumes_recebidos,distribuicao_setores,data_chegada,data_recebimento,itens_avariados,itens_embalagem_avariada,observacao_gestor,observacao_recebimento,historico,created_at,itens_movimento(quantidade)';
+
+function setFiltro(f){
+  MOV.filtro = (MOV.filtro===f && f!=='todos') ? 'todos' : f; MOV.lim=100;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.f===MOV.filtro));
+  document.querySelectorAll('.kpi').forEach(c=>c.classList.toggle('sel',c.dataset.f===MOV.filtro));
+  loadMov();
+}
+document.querySelectorAll('.chip,.kpi').forEach(el=>el.addEventListener('click',()=>setFiltro(el.dataset.f)));
+let _tb; window.onBusca = function(){ clearTimeout(_tb); _tb=setTimeout(()=>{ MOV.busca=$('busca').value.trim(); MOV.lim=100; loadMov(); },300); };
+window.maisMov = function(){ MOV.lim+=100; loadMov(); };
+
+function qLista(){
+  let q = supabase.from('movimentos').select(COLS).order('created_at',{ascending:false}).limit(MOV.lim);
+  const f=MOV.filtro, h=hoje();
+  if(f==='caminho') q=q.eq('status','AGUARDANDO');
+  else if(f==='atraso') q=q.eq('status','AGUARDANDO').lt('prazo',h);
+  else if(f==='chegaram') q=q.in('status',['CHEGOU','ATRASADO']);
+  else if(f==='recebidos') q=q.eq('status','RECEBIDO');
+  else if(f==='estoque') q=q.eq('origem','estoque');
+  const t=MOV.busca.replace(/[,()%*\\]/g,' ').trim();
+  if(t) q=q.or(`numero_movimento.ilike.%${t}%,loja.ilike.%${t}%,destino_nome.ilike.%${t}%`);
+  return q;
+}
+
+async function loadKpis(){
+  const h=hoje(), [y,mo]=h.slice(0,7).split('-').map(Number), ini=h.slice(0,7)+'-01';
+  const prox = mo===12 ? `${y+1}-01-01` : `${y}-${String(mo+1).padStart(2,'0')}-01`;
+  const base=()=>supabase.from('movimentos').select('id',{count:'exact',head:true});
+  const [a,b,c,d] = await Promise.all([
+    base().eq('status','AGUARDANDO'),
+    base().eq('status','AGUARDANDO').lt('prazo',h),
+    base().in('status',['CHEGOU','ATRASADO']),
+    base().eq('status','RECEBIDO').gte('data_recebimento',ini).lt('data_recebimento',prox)
+  ]);
+  $('k-caminho').textContent=a.count??0; $('k-atraso').textContent=b.count??0; $('k-chegaram').textContent=c.count??0; $('k-recebidos').textContent=d.count??0;
+}
+
+function linhaMov(m){
+  const e=etapa(m), atr=atrasoDias(m), nIt=(m.itens_movimento||[]).length, un=(m.itens_movimento||[]).reduce((a,b)=>a+Number(b.quantidade||0),0);
+  const dest = m.destino_nome && !m.destino_nome.includes('Selecione') ? m.destino_nome : (m.loja||'');
+  const uf = m.estado ? ' · '+esc(m.estado) : '';
+  let prazo = fmtDM(m.prazo);
+  if(atr) prazo += `<span class="late">Atrasado há ${atr} dia${atr>1?'s':''}</span>`;
+  else if(e===1 && m.prazo===hoje()) prazo += `<br><span class="pill p-ac">Chega hoje</span>`;
+  const nAv=(m.itens_avariados||[]).length;
+  const etp = e===1 ? 'A caminho' : e===2 ? `<span style="color:var(--blue);font-weight:700">Chegou em ${fmtDM(m.data_chegada)}</span>`
+    : `<span style="color:var(--ok);font-weight:700">Recebido em ${fmtDM(m.data_recebimento)}${nAv?` · ${nAv} avaria${nAv>1?'s':''}`:''}</span>`;
+  return `<tr class="lin" onclick="toggleDet('${m.id}')">
+    <td class="mv"><b>${esc(m.numero_movimento)}</b><small>${esc(dest)}${uf}</small>${m.origem==='estoque'?'<span class="pill p-ac">Lançado pelo estoque</span>':''}</td>
+    <td class="vol">${volumesTxt(m)}</td>
+    <td>${prazo}</td>
+    <td><div class="steps3"><i class="d"></i><i class="${e>=2?'d':''}"></i><i class="${e>=3?'d':''}"></i></div><div class="etp">${etp}</div></td>
+    <td class="vol">${m.origem==='estoque'?'·':`${nIt} itens · ${un} un.`}</td></tr>
+    <tr id="det-${m.id}" style="display:none"><td colspan="5" class="detail" id="detc-${m.id}"></td></tr>`;
+}
+
+async function loadMov(){
+  const { data, error } = await qLista();
+  MOV.rows = data || [];
+  if(error){ $('tbl-mov').innerHTML=`<tr><td colspan="5" class="empty">Erro ao carregar: ${esc(error.message)}</td></tr>`; return; }
+  $('tbl-mov').innerHTML = MOV.rows.length ? MOV.rows.map(linhaMov).join('') : '<tr><td colspan="5" class="empty">Nenhum movimento encontrado.</td></tr>';
+  $('btn-mais').style.display = MOV.rows.length>=MOV.lim ? 'inline-block' : 'none';
+}
+function refreshMov(){ loadKpis(); loadMov(); }
+
+window.toggleDet = async function(id){
+  const tr=$('det-'+id); const abre = tr.style.display==='none';
+  tr.style.display = abre ? 'table-row' : 'none';
+  if(!abre) return;
+  const m = MOV.rows.find(x=>x.id===id); if(!m) return;
+  $('detc-'+id).innerHTML = 'Carregando…';
+  let itens = MOV.itens[id];
+  if(!itens){ const r=await supabase.from('itens_movimento').select('codigo,descricao,quantidade').eq('movimento_id',id).order('codigo'); itens=MOV.itens[id]=r.data||[]; }
+  const av=m.itens_avariados||[], emb=m.itens_embalagem_avariada||[];
+  const tbl=(l,t)=>l.length?`<table><thead><tr><th>Código</th><th>Descrição</th><th>Qtd</th><th>Situação</th></tr></thead><tbody>${l.map(i=>`<tr><td><b>${esc(i.codigo)}</b></td><td>${esc(i.descricao||'·')}</td><td>${esc(i.quantidade)}</td><td>${t==='av'?(i.ajustado==='SIM'?'<span style="color:var(--ok);font-weight:700">Ajustado</span>':'<span style="color:var(--warn);font-weight:700">Não ajustado</span>'):((i.quantidade_pendente||0)>0?`<span style="color:var(--warn);font-weight:700">${esc(i.quantidade_pendente)} aguardando embalagem</span>`:'<span style="color:var(--ok);font-weight:700">Troca completa</span>')}</td></tr>`).join('')}</tbody></table>`:'<div style="margin:4px 0">Nenhum registro.</div>';
+  $('detc-'+id).innerHTML = `
+    ${m.observacao_gestor?`<p style="margin:0 0 8px"><b>Observação do gestor:</b> ${esc(m.observacao_gestor)}</p>`:''}
+    ${m.historico?`<p style="margin:0 0 8px">${esc(m.historico).split('\n').join('<br>')}</p>`:''}
+    ${m.status==='RECEBIDO'?`<p style="margin:0 0 4px"><b>Recebido em ${fmtData(m.data_recebimento)}</b>${m.volumes_recebidos!=null?` · ${esc(m.volumes_recebidos)} volume(s) conferido(s)`:''}${m.observacao_recebimento?' · Obs: '+esc(m.observacao_recebimento):''}</p>
+      <p style="margin:10px 0 2px"><b>Itens avariados</b></p>${tbl(av,'av')}<p style="margin:10px 0 2px"><b>Itens com embalagem avariada</b></p>${tbl(emb,'emb')}`:''}
+    ${itens.length?`<p style="margin:10px 0 2px"><b>Itens do movimento (${itens.length})</b></p><div class="itens-box"><table><thead><tr><th>Código</th><th>Descrição</th><th>Qtd</th></tr></thead><tbody>${itens.map(i=>`<tr><td>${esc(i.codigo)}</td><td>${esc(i.descricao||'·')}</td><td>${esc(i.quantidade)}</td></tr>`).join('')}</tbody></table></div>`:''}
+    <div class="acts">${m.origem==='estoque'?'':`<button class="secondary small" onclick="event.stopPropagation();editarMov('${m.id}')">Editar</button>`}<button class="danger small" onclick="event.stopPropagation();removerMov('${m.id}')">Excluir</button></div>`;
+};
+
+window.removerMov = async function(id){
+  if(!confirm('Excluir este movimento e todos os itens dele? Ação irreversível.')) return;
+  const { error } = await supabase.from('movimentos').delete().eq('id',id);
+  if(error) return alert(error.message);
+  toast('Movimento excluído'); refreshMov();
+};
+
+/* ---- editar ---- */
+let EDIT=null;
+window.editarMov = function(id){
+  const m=MOV.rows.find(x=>x.id===id); if(!m) return;
+  const ss=setoresDe(m), q=nome=>(ss.find(s=>s.setor===nome)||{}).quantidade||0;
+  EDIT={id, numero:m.numero_movimento};
+  $('ed-box').innerHTML = `<h2>Editar movimento</h2>
+    <div class="g2"><div><label class="f">Número do movimento</label><input id="ed-num" value="${esc(m.numero_movimento)}"></div>
+    <div><label class="f">Prazo de chegada</label><input type="date" id="ed-prazo" value="${esc(m.prazo||'')}"></div></div>
+    <label class="f">Total de volumes</label><input type="number" min="1" id="ed-vol" value="${esc(m.volumes_esperados||'')}" oninput="edGeral()">
+    <label class="f">Volumes por setor (o resto fica no Estoque Geral)</label>
+    <div class="g4">${SETORES.map(([n,k])=>`<div><label class="f" style="font-weight:500">${n}</label><input type="number" min="0" id="ed-${k}" value="${q(n)}" oninput="edGeral()"></div>`).join('')}</div>
+    <div class="hint" id="ed-geral"></div>
+    <label class="f">Observação para o estoque</label><input id="ed-obs" value="${esc(m.observacao_gestor||'')}">
+    <div class="modal-actions"><button class="secondary" onclick="$('ov-edit').classList.remove('show')">Cancelar</button><button onclick="salvarEdicao()">Salvar</button></div>`;
+  $('ov-edit').classList.add('show'); edGeral();
+};
+window.$ = $;
+window.edGeral = function(){
+  const t=Number($('ed-vol').value)||0, s=SETORES.reduce((a,[,k])=>a+(Number($('ed-'+k).value)||0),0), g=t-s, el=$('ed-geral');
+  el.className = 'hint '+(g<0?'bad':'ok'); el.textContent = !t ? '' : g<0 ? `Os setores somam ${s}, mais que o total (${t}).` : `Estoque Geral: ${g} volume(s).`;
+};
+window.salvarEdicao = async function(){
+  const numero=$('ed-num').value.trim(), prazo=$('ed-prazo').value, vol=Number($('ed-vol').value)||null;
+  if(!numero||!prazo) return alert('Preencha o número e o prazo.');
+  const setores=SETORES.map(([n,k])=>({setor:n,quantidade:Number($('ed-'+k).value)||0})).filter(s=>s.quantidade>0);
+  if(vol && setores.reduce((a,b)=>a+b.quantidade,0)>vol) return alert('Os setores somam mais que o total de volumes.');
+  if(numero!==EDIT.numero){ const { count } = await supabase.from('movimentos').select('id',{count:'exact',head:true}).eq('numero_movimento',numero); if(count>0 && !confirm('Já existe outro movimento com esse número. Salvar mesmo assim?')) return; }
+  const { error } = await supabase.from('movimentos').update({ numero_movimento:numero, prazo, volumes_esperados:vol, distribuicao_setores:setores, observacao_gestor:$('ed-obs').value.trim()||null, updated_at:new Date().toISOString() }).eq('id',EDIT.id);
+  if(error) return alert(error.message);
+  $('ov-edit').classList.remove('show'); toast('Movimento atualizado'); refreshMov();
+};
+
+/* ---- relatório mensal ---- */
+window.baixarRelatorioMensal = async function(){
+  const mes=$('in-mes-relatorio').value; if(!mes) return alert('Selecione o mês.');
+  const [ano,mn]=mes.split('-').map(Number), ini=mes+'-01', fim = mn===12?`${ano+1}-01-01`:`${ano}-${String(mn+1).padStart(2,'0')}-01`;
+  const { data:movs } = await supabase.from('movimentos').select('*, itens_movimento(quantidade)').eq('status','RECEBIDO').gte('data_recebimento',ini).lt('data_recebimento',fim).order('data_recebimento');
+  if(!movs||!movs.length) return alert('Nenhuma devolução recebida nesse mês.');
+  const linhas=movs.map(m=>({
+    'Movimento':m.numero_movimento,'Origem':m.origem==='estoque'?'Lançado pelo estoque':'Cadastrado pelo gestor','Filial':m.loja,'Destino':m.destino_nome||'','UF':m.estado,
+    'Data recebimento':fmtData(m.data_recebimento),'Volumes esperados':m.volumes_esperados||'','Volumes recebidos':m.volumes_recebidos??'',
+    'Distribuição por setor':setoresDe(m).map(s=>`${s.setor}: ${s.quantidade}`).join(', '),
+    'Itens (tipos)':(m.itens_movimento||[]).length,'Unidades totais':(m.itens_movimento||[]).reduce((a,b)=>a+Number(b.quantidade),0),
+    'Itens avariados':(m.itens_avariados||[]).length,'Itens embalagem avariada':(m.itens_embalagem_avariada||[]).length,
+    'Pendente troca embalagem':(m.itens_embalagem_avariada||[]).reduce((a,b)=>a+Number(b.quantidade_pendente||0),0),'Observação recebimento':m.observacao_recebimento||''}));
+  const ws=XLSX.utils.json_to_sheet(linhas), wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Devoluções'); XLSX.writeFile(wb,`relatorio-devolucoes-${mes}.xlsx`);
+};
+
+/* ================= NOVO MOVIMENTO (3 passos) ================= */
+let DESTINOS=[]; let destinosOk=false;
+async function carregaDestinos(){ const { data } = await supabase.from('catalogo_destinos').select('id,filial,destino,uf').order('destino'); DESTINOS=data||[]; destinosOk=true; }
+const NM0 = () => ({ passo:1, numero:'', destId:'', prazo:'', vol:'', set:{quotes:0,infra:0,merch:0,auditoria:0}, obs:'', arqs:[], itens:[], dup:null });
+let NM = NM0();
+
+function destNM(){ return DESTINOS.find(d=>String(d.id)===String(NM.destId)); }
+function setoresNM(){ return SETORES.map(([n,k])=>({setor:n,quantidade:Number(NM.set[k])||0})); }
+function geralNM(){ return (Number(NM.vol)||0) - setoresNM().reduce((a,b)=>a+b.quantidade,0); }
+
+async function renderNM(){
+  if(!destinosOk) await carregaDestinos();
+  const p=NM.passo, steps=['Dados','Volumes e setores','Itens (Excel)'];
+  const head=`<div class="stepper">${steps.map((t,i)=>`<div class="st ${i+1<p?'dn':i+1===p?'on':''}" ${i+1<p?`onclick="nmIr(${i+1})"`:''}><span class="n">${i+1<p?'✓':i+1}</span>${t}${i<2?'<span class="ln"></span>':''}</div>`).join('')}</div>`;
+  let corpo='';
+  if(p===1) corpo=`
+    <label class="f">Número do movimento</label><input id="nm-num" value="${esc(NM.numero)}" placeholder="Precisa bater com o que o estoque lançar" oninput="nmNum(this.value)">
+    <div class="hint" id="nm-dup"></div>
+    <label class="f">Destino</label>
+    <select id="nm-dest" onchange="nmDest(this.value)"><option value="">Selecione…</option>${DESTINOS.map(d=>`<option value="${esc(d.id)}" ${String(d.id)===String(NM.destId)?'selected':''}>${esc(d.destino)}</option>`).join('')}</select>
+    <div class="g2"><div><label class="f">Filial</label><input id="nm-filial" readonly value="${esc((destNM()||{}).filial||'')}" placeholder="·"></div><div><label class="f">UF</label><input id="nm-uf" readonly value="${esc((destNM()||{}).uf||'')}" placeholder="·"></div></div>
+    <label class="f">Prazo para chegada no Estoque Geral</label><input type="date" id="nm-prazo" value="${esc(NM.prazo)}" oninput="NMset('prazo',this.value)">`;
+  if(p===2) corpo=`
+    <label class="f">Quantidade total de volumes</label><input type="number" min="1" id="nm-vol" value="${esc(NM.vol)}" placeholder="Ex: 6" oninput="nmVol(this.value)">
+    <label class="f">Divisão por setor (o Estoque Geral recebe o que sobrar, automático)</label>
+    <div class="g4"><div class="setor geral"><b id="nm-geral">0</b><span>Estoque Geral</span></div>
+    ${SETORES.map(([n,k])=>`<div class="setor"><input type="number" min="0" value="${NM.set[k]||0}" oninput="nmSet('${k}',this.value)"><span>${n}</span></div>`).join('')}</div>
+    <div class="hint" id="nm-soma" style="margin-top:10px"></div>
+    <label class="f">Observação para o estoque (opcional)</label><input id="nm-obs" value="${esc(NM.obs)}" placeholder="Ex: vêm mais 2 movimentos junto desse" oninput="NMset('obs',this.value)">`;
+  if(p===3) corpo=`
+    <div class="drop" onclick="$('nm-file').click()" id="nm-drop">${NM.arqs.length?(NM.arqs.length===1?'Arquivo: '+esc(NM.arqs[0].nome):NM.arqs.length+' arquivos selecionados'):'Clique para escolher um ou mais Excel (.xlsx) com os itens'}</div>
+    <input type="file" id="nm-file" accept=".xlsx,.xls" multiple style="display:none" onchange="nmArquivos(this.files)">
+    <div class="hint">O sistema puxa as colunas <b>ID do Produto</b>, <b>Nome do Produto</b> e <b>Quantidade Solicitada</b> de cada arquivo.</div>
+    <div id="nm-prev">${prevHTML()}</div>`;
+  const nav = p===1 ? `<span></span><button onclick="nmProx()">Próximo: volumes</button>`
+    : p===2 ? `<button class="secondary" onclick="nmIr(1)">Voltar</button><button onclick="nmProx()">Próximo: itens</button>`
+    : `<button class="secondary" onclick="nmIr(2)">Voltar</button><button id="nm-criar" onclick="criarMovimento()" ${NM.itens.length?'':'disabled'}>Criar movimento</button>`;
+  $('panel-novo').innerHTML = `${head}<div class="nmgrid"><div class="card pad">${corpo}<div class="foot">${nav}</div></div><div class="card pad sum" id="nm-sum"></div></div>`;
+  if(p===2){ nmAtualiza(); }
+  resumoNM();
+}
+function prevHTML(){
+  if(!NM.arqs.length) return '';
+  const tot=NM.itens.reduce((a,b)=>a+b.quantidade,0);
+  return NM.arqs.map(a=>`<div class="arq"><h4>📄 ${esc(a.nome)}</h4><div class="prev"><table><thead><tr><th>Código</th><th>Descrição</th><th>Qtd</th></tr></thead><tbody>${a.itens.map(i=>`<tr><td>${esc(i.codigo)}</td><td>${esc(i.descricao)}</td><td>${esc(i.quantidade)}</td></tr>`).join('')}</tbody></table></div><div class="subtot">${a.itens.length} itens · ${a.itens.reduce((x,y)=>x+y.quantidade,0)} unidades</div></div>`).join('')
+    + (NM.arqs.length>1?`<div class="arq" style="background:#F1EFE8"><h4>Resumo total</h4><div class="subtot">${NM.itens.length} itens · ${tot} unidades</div></div>`:'');
+}
+function resumoNM(){
+  const d=destNM(), el=$('nm-sum'); if(!el) return;
+  const l=(a,b)=>`<div class="l"><span>${a}</span><b>${b||'·'}</b></div>`;
+  const ss=setoresNM().filter(s=>s.quantidade>0);
+  el.innerHTML = `<h4>Resumo do movimento</h4>${l('Movimento',esc(NM.numero))}${l('Destino',esc(d?d.destino:''))}${l('Filial / UF',d?esc(d.filial)+' · '+esc(d.uf):'')}${l('Prazo',NM.prazo?fmtData(NM.prazo):'')}${l('Volumes',esc(NM.vol))}
+    ${NM.vol?l('Estoque Geral',geralNM()):''}${ss.map(s=>l(esc(s.setor),s.quantidade)).join('')}${l('Itens',NM.itens.length?`${NM.itens.length} itens · ${NM.itens.reduce((a,b)=>a+b.quantidade,0)} un.`:'')}`;
+}
+window.NMset=(k,v)=>{ NM[k]=v; resumoNM(); };
+let _dd; window.nmNum=function(v){ NM.numero=v.trim(); NM.dup=null; resumoNM(); const el=$('nm-dup'); if(el) el.textContent=''; clearTimeout(_dd);
+  if(!NM.numero) return; _dd=setTimeout(async()=>{ const { count } = await supabase.from('movimentos').select('id',{count:'exact',head:true}).eq('numero_movimento',NM.numero);
+    if(NM.numero!==v.trim()) return; NM.dup=count>0; const e=$('nm-dup'); if(e){ e.className='hint '+(NM.dup?'bad':'ok'); e.textContent=NM.dup?'Atenção: já existe um movimento com esse número.':'✓ Número novo, ainda não existe no sistema.'; } },350); };
+window.nmDest=function(v){ NM.destId=v; const d=destNM(); $('nm-filial').value=d?d.filial:''; $('nm-uf').value=d?d.uf:''; resumoNM(); };
+window.nmVol=function(v){ NM.vol=v; nmAtualiza(); resumoNM(); };
+window.nmSet=function(k,v){ NM.set[k]=v; nmAtualiza(); resumoNM(); };
+function nmAtualiza(){ const g=geralNM(), t=Number(NM.vol)||0, soma=setoresNM().reduce((a,b)=>a+b.quantidade,0);
+  const eg=$('nm-geral'); if(eg) eg.textContent = t?Math.max(g,0):0;
+  const es=$('nm-soma'); if(es){ es.className='hint '+(g<0?'bad':'ok'); es.textContent = !t?'': g<0?`Os setores somam ${soma}, mais que o total (${t}).`:`✓ ${g} + ${soma} = ${t} volumes. Confere com o total.`; } }
+window.nmIr=function(p){ NM.passo=p; renderNM(); };
+window.nmProx=async function(){
+  if(NM.passo===1){
+    if(!NM.numero) return alert('Informe o número do movimento.');
+    if(!NM.destId) return alert('Escolha o destino.');
+    if(!NM.prazo) return alert('Informe o prazo de chegada.');
+    if(NM.dup && !confirm('Já existe um movimento com esse número. Continuar mesmo assim?')) return;
+  }
+  if(NM.passo===2){
+    if(!(Number(NM.vol)>=1)) return alert('Informe a quantidade total de volumes.');
+    if(geralNM()<0) return alert('Os setores somam mais que o total de volumes.');
+  }
+  NM.passo++; renderNM();
+};
+function parseArquivo(rows){
+  return rows.map(row=>{ let codigo=null,descricao=null,quantidade=null;
+    for(const key in row){ const k=norm(key);
+      if(k.includes('id do produto')||k==='id produto') codigo=String(row[key]).trim();
+      else if(k.includes('nome do produto')) descricao=String(row[key]).trim();
+      else if(k.includes('quantidade solicitada')||(k.includes('quant')&&quantidade===null)) quantidade=Number(row[key])||0; }
+    return {codigo,descricao,quantidade}; }).filter(r=>r.codigo).map(p=>({codigo:p.codigo,descricao:p.descricao||'(sem descrição na planilha)',quantidade:p.quantidade||0}));
+}
+window.nmArquivos = async function(files){
+  const arqs=[];
+  for(const file of Array.from(files||[])){
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}), sheet=wb.Sheets[wb.SheetNames[0]];
+    let rows=XLSX.utils.sheet_to_json(sheet,{defval:'',range:2});
+    if(!rows.length||!Object.keys(rows[0]).some(k=>norm(k).includes('produto'))) rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
+    const itens=parseArquivo(rows);
+    if(!itens.length){ alert(`Não encontrei "ID do Produto", "Nome do Produto" e "Quantidade Solicitada" em "${file.name}". Arquivo ignorado.`); continue; }
+    arqs.push({nome:file.name,itens});
+  }
+  if(!arqs.length){ if(files&&files.length) alert('Nenhum arquivo pôde ser lido.'); return; }
+  NM.arqs=arqs; NM.itens=arqs.flatMap(a=>a.itens); renderNM();
+};
+window.criarMovimento = async function(){
+  const d=destNM(); if(!d||!NM.itens.length) return;
+  const b=$('nm-criar'); b.disabled=true; b.textContent='Criando…';
+  const { data:mov, error } = await supabase.from('movimentos').insert({
+    numero_movimento:NM.numero, estado:d.uf, loja:d.filial, destino_nome:d.destino, prazo:NM.prazo, observacao_gestor:NM.obs.trim()||null,
+    status:'AGUARDANDO', volumes_esperados:Number(NM.vol)||null, distribuicao_setores:setoresNM().filter(s=>s.quantidade>0), origem:'gestor' }).select().single();
+  if(error){ b.disabled=false; b.textContent='Criar movimento'; return alert(error.message); }
+  const rows=NM.itens.map(i=>({movimento_id:mov.id,codigo:i.codigo,descricao:i.descricao,quantidade:i.quantidade}));
+  for(let i=0;i<rows.length;i+=500){
+    const { error:e2 } = await supabase.from('itens_movimento').insert(rows.slice(i,i+500));
+    if(e2){ await supabase.from('movimentos').delete().eq('id',mov.id); b.disabled=false; b.textContent='Criar movimento'; return alert('Erro ao salvar os itens, o movimento não foi criado: '+e2.message); }
+  }
+  toast('Movimento criado'); NM=NM0(); irTab('mov');
+};
+
+/* ================= CADASTROS ================= */
+const CAD={ sub:'itens', itens:null, q:'' };
+window.cadSub=function(s){ CAD.sub=s; renderCad(); };
+async function renderCad(){
+  const top=`<div class="sublink"><span class="chip ${CAD.sub==='itens'?'on':''}" onclick="cadSub('itens')">Itens</span><span class="chip ${CAD.sub==='destinos'?'on':''}" onclick="cadSub('destinos')">Destinos</span></div>`;
+  if(CAD.sub==='itens'){
+    $('panel-cad').innerHTML = top+`<div class="card pad" style="margin-bottom:16px"><b>Cadastrar itens em lote</b><p class="hint" style="margin:4px 0 10px">Cole do Excel: <b>Código</b> e <b>Descrição</b>, um por linha (tab ou vírgula).</p>
+      <textarea id="lote-itens" style="font-family:ui-monospace,monospace;font-size:12.5px;min-height:110px" placeholder="Código	Descrição"></textarea><button onclick="salvarItensLote()">Cadastrar itens</button></div>
+      <div class="card pad"><b>Itens cadastrados</b><div style="margin-top:10px"><input type="search" id="cat-q" placeholder="Buscar por código ou descrição…" value="${esc(CAD.q)}" oninput="catBusca(this.value)"></div>
+      <table><thead><tr><th>Código</th><th>Descrição</th><th></th></tr></thead><tbody id="tbl-cat"><tr><td colspan="3" class="empty">Carregando…</td></tr></tbody></table></div>`;
+    if(!CAD.itens) await loadCatItens();
+    desenhaCat();
+  } else {
+    $('panel-cad').innerHTML = top+`<div class="card pad" style="margin-bottom:16px"><b>Cadastrar destinos em lote</b><p class="hint" style="margin:4px 0 10px">Cole do Excel: <b>Filial</b>, <b>Destino</b> e <b>UF</b>, um por linha (tab ou vírgula).</p>
+      <textarea id="lote-dest" style="font-family:ui-monospace,monospace;font-size:12.5px;min-height:110px" placeholder="Filial	Destino	UF"></textarea><button onclick="salvarDestinosLote()">Cadastrar destinos</button></div>
+      <div class="card pad"><b>Destinos cadastrados</b><table><thead><tr><th>Filial</th><th>Destino</th><th>UF</th><th></th></tr></thead><tbody id="tbl-dest"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody></table></div>`;
+    await carregaDestinos(); desenhaDest();
+  }
+}
+async function loadCatItens(){ const out=[]; for(let a=0;a<200000;a+=1000){ const { data } = await supabase.from('itens_catalogo').select('codigo,descricao').order('codigo').range(a,a+999); out.push(...(data||[])); if(!data||data.length<1000) break; } CAD.itens=out; }
+function desenhaCat(){
+  const t=norm(CAD.q), l=(CAD.itens||[]).filter(r=>!t||norm(r.codigo).includes(t)||norm(r.descricao).includes(t)), tb=$('tbl-cat'); if(!tb) return;
+  tb.innerHTML = l.length ? l.slice(0,150).map(r=>`<tr><td><b>${esc(r.codigo)}</b></td><td>${esc(r.descricao)}</td><td><button class="secondary small" onclick="removeItemCat('${esc(r.codigo).replace(/'/g,"\\'")}')">Remover</button></td></tr>`).join('')+(l.length>150?`<tr><td colspan="3" class="empty">Mostrando 150 de ${l.length}. Refine a busca.</td></tr>`:'') : '<tr><td colspan="3" class="empty">Nenhum item.</td></tr>';
+}
+let _cb; window.catBusca=v=>{ CAD.q=v; clearTimeout(_cb); _cb=setTimeout(desenhaCat,150); };
+window.salvarItensLote=async function(){
+  const texto=$('lote-itens').value.trim(); if(!texto) return alert('Cole ao menos uma linha.');
+  const rows=texto.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ let p=l.split('\t'); if(p.length<2) p=l.split(','); p=p.map(x=>x.trim()); return {codigo:p[0]||'',descricao:p.slice(1).join(' ').trim()}; }).filter(r=>r.codigo&&r.descricao);
+  if(!rows.length) return alert('Não consegui separar Código / Descrição.');
+  for(let i=0;i<rows.length;i+=500){ const { error } = await supabase.from('itens_catalogo').upsert(rows.slice(i,i+500),{onConflict:'codigo'}); if(error) return alert(error.message); }
+  toast(`${rows.length} item(ns) cadastrado(s)`); CAD.itens=null; renderCad();
+};
+window.removeItemCat=async function(c){ if(!confirm('Remover este item do catálogo?')) return; await supabase.from('itens_catalogo').delete().eq('codigo',c); CAD.itens=CAD.itens.filter(r=>r.codigo!==c); desenhaCat(); };
+function desenhaDest(){ const tb=$('tbl-dest'); if(!tb) return; tb.innerHTML = DESTINOS.length ? DESTINOS.map(r=>`<tr><td>${esc(r.filial)}</td><td>${esc(r.destino)}</td><td>${esc(r.uf)}</td><td><button class="secondary small" onclick="removeDest('${esc(r.id)}')">Remover</button></td></tr>`).join('') : '<tr><td colspan="4" class="empty">Nenhum destino cadastrado.</td></tr>'; }
+window.salvarDestinosLote=async function(){
+  const texto=$('lote-dest').value.trim(); if(!texto) return alert('Cole ao menos uma linha.');
+  const rows=texto.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ let p=l.split('\t'); if(p.length<3) p=l.split(','); p=p.map(x=>x.trim()); return {filial:p[0]||'',destino:p[1]||'',uf:(p[2]||'').toUpperCase()}; }).filter(r=>r.filial&&r.destino&&r.uf);
+  if(!rows.length) return alert('Não consegui separar Filial / Destino / UF.');
+  const { error } = await supabase.from('catalogo_destinos').insert(rows); if(error) return alert(error.message);
+  toast(`${rows.length} destino(s) cadastrado(s)`); renderCad();
+};
+window.removeDest=async function(id){ if(!confirm('Remover este destino?')) return; await supabase.from('catalogo_destinos').delete().eq('id',id); DESTINOS=DESTINOS.filter(d=>String(d.id)!==String(id)); desenhaDest(); };
+
+/* ================= INÍCIO ================= */
+checaSchema(); refreshMov();
+let _rt; function rt(){ clearTimeout(_rt); _rt=setTimeout(()=>{ if($('panel-mov').classList.contains('active')) refreshMov(); },900); }
+supabase.channel('devolucao-painel-realtime').on('postgres_changes',{event:'*',schema:'public',table:'movimentos'},rt).subscribe();
+</script>
+</body>
+</html>

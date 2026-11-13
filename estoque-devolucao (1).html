@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estoque: Recebimento de Devoluções</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%236D28D9%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 font-family=%22Arial,sans-serif%22 font-weight=%22700%22 fill=%22%23fff%22 text-anchor=%22middle%22>D</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8; --card:#FFFFFF; --ink:#1C2430; --sub:#5B6472; --line:#E3E6EA; --accent:#6D28D9; --acs:#EDE9FE; --radius:14px;
+    --ok:#1E9E5A; --oks:#E3F6EC; --warn:#D97706; --bad:#D0342C; --bads:#FCE9E7; --blue:#1D6FD1; --blues:#E6F0FC;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 80px;}
+  h1{font-size:22px;margin:0 0 4px;} .sub{color:var(--sub);font-size:13.5px;margin:0 0 18px;}
+  .aviso{background:var(--bads);border:1px solid #F2B8B3;color:#9A2820;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:16px;}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+  @media(max-width:720px){.kpis{grid-template-columns:1fr;}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .kpi b{font-size:28px;font-weight:800;display:block;line-height:1.1;} .kpi span{font-size:12px;color:var(--sub);}
+  .kpi.bad{border-left-color:var(--bad);} .kpi.bad b{color:var(--bad);} .kpi.blue{border-left-color:var(--blue);} .kpi.blue b{color:var(--blue);} .kpi.gray{border-left-color:#8A93A1;}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+  .bar input{margin:0;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+  input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;margin-bottom:10px;background:#fff;color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  textarea{min-height:70px;resize:vertical;}
+  label.f{display:block;font-size:11.5px;color:var(--sub);font-weight:700;margin-bottom:5px;}
+  button{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+  button.secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line);} button.small{padding:6px 10px;font-size:12px;} button.danger{background:var(--bad);} button.warn{background:var(--warn);}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  .sec{display:flex;align-items:center;gap:10px;margin:22px 0 10px;font-size:14px;font-weight:800;}
+  .sec em{font-style:normal;font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;background:#EEF0F3;color:var(--sub);} .sec em.bad{background:var(--bads);color:var(--bad);} .sec em.blue{background:var(--blues);color:var(--blue);}
+  .mc{display:grid;grid-template-columns:1fr 250px;gap:16px;background:#fff;border:1px solid var(--line);border-left:5px solid #8A93A1;border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;align-items:center;}
+  @media(max-width:720px){.mc{grid-template-columns:1fr;}}
+  .mc.bad{border-left-color:var(--bad);} .mc.blue{border-left-color:var(--blue);}
+  .mc h3{margin:0 0 6px;font-size:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .meta{font-size:12.5px;color:var(--sub);display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;}
+  .vs{display:flex;gap:6px;flex-wrap:wrap;}
+  .v{background:#F1EFE8;border-radius:999px;font-size:12px;padding:4px 11px;color:var(--sub);} .v b{color:var(--ink);} .v.s{background:var(--acs);color:var(--accent);font-weight:600;}
+  .pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;}
+  .p-gray{background:#EEF0F3;color:#5B6472;} .p-ok{background:var(--oks);color:var(--ok);} .p-ac{background:var(--acs);color:var(--accent);}
+  .obs{background:#FFF8E6;border:1px solid #F0D98C;color:#8A6D1A;border-radius:8px;padding:7px 10px;font-size:12.5px;margin-top:8px;}
+  .cta{background:var(--accent);color:#fff;border-radius:11px;text-align:center;padding:14px;font-weight:800;font-size:14px;cursor:pointer;}
+  .cta small{display:block;font-weight:500;font-size:11.5px;opacity:.92;margin-top:3px;}
+  .cta.bad{background:var(--bad);} .cta.blue{background:var(--blue);}
+  .link{font-size:12.5px;color:var(--accent);cursor:pointer;margin-top:8px;display:inline-block;font-weight:700;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--sub);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1px solid var(--line);} td{padding:8px;border-bottom:1px solid var(--line);}
+  .empty{color:var(--sub);font-size:13px;padding:26px 0;text-align:center;}
+  .hist{background:#fff;border:1px solid var(--line);border-radius:var(--radius);margin-top:22px;}
+  .hist-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;font-weight:800;font-size:14px;cursor:pointer;}
+  .hist-b{padding:0 18px 18px;display:none;} .hist-b.show{display:block;}
+  .abas{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .chip{background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--sub);cursor:pointer;} .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .hrow{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+  .hrow-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;cursor:pointer;}
+  .hrow h4{margin:0 0 3px;font-size:14px;} .hrow .meta{margin:0;}
+  .hdet{display:none;margin-top:10px;font-size:12.5px;color:var(--sub);} .hdet.show{display:block;}
+  .stats{font-size:12px;color:var(--sub);margin:0 0 10px;}
+  .overlay{position:fixed;inset:0;background:rgba(15,20,28,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;} .overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:24px 26px;max-width:760px;width:100%;max-height:92vh;overflow:auto;}
+  .modal h2{font-size:18px;margin:0 0 3px;} .modal .info{font-size:13px;color:var(--sub);margin-bottom:14px;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:6px;padding-top:14px;border-top:1px solid var(--line);}
+  .ck{display:grid;grid-template-columns:30px 1fr;gap:12px;padding:14px 0;border-top:1px solid var(--line);}
+  .ck>.n{width:26px;height:26px;border-radius:50%;background:#E3E6EA;color:var(--sub);display:grid;place-items:center;font-size:13px;font-weight:700;} .ck>.n.ok{background:var(--ok);color:#fff;}
+  .ck h5{margin:0 0 6px;font-size:13.5px;} .ck h5 span{font-weight:500;color:var(--sub);}
+  .cnt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;} .cnt input{width:90px;margin:0;text-align:center;font-weight:800;font-size:18px;}
+  .okl{color:var(--ok);font-weight:700;font-size:13px;} .badl{color:var(--bad);font-weight:700;font-size:13px;}
+  .add-row{display:grid;grid-template-columns:110px 1fr 80px 120px auto;gap:8px;align-items:end;margin-bottom:8px;} .add-row input,.add-row select{margin-bottom:0;} .add-row button{height:40px;white-space:nowrap;}
+  @media(max-width:620px){.add-row{grid-template-columns:1fr 1fr;}}
+  .items-list table{table-layout:fixed;} .items-list td{padding:6px 8px;} .items-list td:nth-child(1){width:80px;} .items-list td:nth-child(3){width:110px;} .items-list td:nth-child(4){width:170px;} .items-list td:nth-child(5){width:24px;text-align:center;}
+  .items-list .rm{color:var(--bad);cursor:pointer;font-weight:700;} .empty-mini{font-size:12px;color:var(--sub);padding:4px 0;}
+  .hint{font-size:12px;color:var(--sub);margin:-4px 0 10px;} .hint.ok{color:var(--ok);font-weight:700;} .hint.bad{color:var(--bad);font-weight:700;}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} @media(max-width:620px){.g2{grid-template-columns:1fr;}}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:200;} .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Recebimento de devoluções</h1>
+  <p class="sub">O que está chegando, em ordem de urgência. Toque no botão do cartão para agir.</p>
+  <div id="aviso"></div>
+
+  <div class="kpis">
+    <div class="kpi bad"><b id="k-atraso">·</b><span>Atrasados</span></div>
+    <div class="kpi gray"><b id="k-hoje">·</b><span>Chegam hoje</span></div>
+    <div class="kpi blue"><b id="k-chegaram">·</b><span>Chegaram, falta dar recebimento</span></div>
+  </div>
+
+  <div class="bar">
+    <input type="search" id="busca" style="flex:1;min-width:220px" placeholder="Buscar por número do movimento ou destino" oninput="desenha()">
+    <button class="secondary" onclick="abrirRelatorio()">Relatório mensal</button>
+    <button onclick="abrirAvulso()">+ Adicionar recebimento</button>
+  </div>
+  <div id="rel-box" style="display:none;margin:10px 0" class="card">
+    <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+      <div><label class="f">Mês</label><input type="month" id="in-mes-relatorio" style="margin:0"></div>
+      <button onclick="baixarRelatorioMensal()">Baixar relatório (.xlsx)</button>
+    </div>
+  </div>
+
+  <div id="lista"><div class="empty">Carregando…</div></div>
+
+  <div class="hist">
+    <div class="hist-h" onclick="toggleHist()"><span>Histórico de recebidos</span><span style="color:var(--accent);font-size:13px" id="hist-seta">Ver ▸</span></div>
+    <div class="hist-b" id="hist-b">
+      <div class="abas"><span class="chip on" id="aba-gestor" onclick="abaHist('gestor')">Cadastrados pelo gestor</span><span class="chip" id="aba-estoque" onclick="abaHist('estoque')">Lançados pelo estoque</span></div>
+      <input type="search" id="hist-q" placeholder="Buscar por número ou destino" oninput="histBusca()">
+      <div class="stats" id="hist-stats"></div>
+      <div id="hist-lista"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR CHEGADA -->
+<div class="overlay" id="ov-chegada"><div class="modal" style="max-width:460px">
+  <h2>Confirmar chegada</h2><div class="info" id="ch-info"></div>
+  <label class="f">Data em que a mercadoria chegou</label><input type="date" id="ch-data">
+  <div class="hint">Aqui você só confirma que chegou. O recebimento (volumes, avarias, embalagem) é feito depois.</div>
+  <div class="modal-actions"><button class="secondary" onclick="fechar('ov-chegada')">Cancelar</button><button onclick="confirmarChegada()">Confirmar chegada</button></div>
+</div></div>
+
+<!-- MODAL: RECEBIMENTO (do movimento do gestor e avulso) -->
+<div class="overlay" id="ov-receb"><div class="modal">
+  <h2 id="rc-titulo"></h2><div class="info" id="rc-info"></div>
+
+  <div id="rc-avulso" style="display:none">
+    <div class="g2"><div><label class="f">Número do movimento</label><input id="av-num" oninput="avNum()" placeholder="Número do movimento"><div class="hint" id="av-dup"></div></div>
+    <div><label class="f">Ponto de venda de origem</label><select id="av-pdv" onchange="avPdv()"><option value="">Selecione…</option></select>
+      <input id="av-outro" style="display:none" placeholder="Digite o nome do ponto de venda"></div></div>
+  </div>
+
+  <div class="ck"><div class="n ok">1</div><div><h5>Data do recebimento em sistema</h5><input type="date" id="rc-data" style="width:210px;margin:0"></div></div>
+  <div class="ck"><div class="n ok">2</div><div><h5>Conferência dos volumes</h5>
+    <div class="cnt"><span id="rc-vol-pre">Chegaram</span><input type="number" min="0" id="rc-vol" oninput="volConf()"><span id="rc-vol-pos"></span><span id="rc-vol-res"></span></div></div></div>
+  <div class="ck"><div class="n">3</div><div><h5>Itens avariados <span>(opcional)</span></h5>
+    <div class="add-row"><div><label class="f">Código</label><input id="av-codigo" placeholder="Código" oninput="autoDesc('av')"></div>
+      <div><label class="f">Descrição</label><input id="av-desc" placeholder="Descrição" readonly></div>
+      <div><label class="f">Qtd</label><input id="av-qtd" type="number" min="1" value="1"></div>
+      <div><label class="f">Já ajustado?</label><select id="av-aj"><option value="NAO">Não</option><option value="SIM">Sim</option></select></div>
+      <button type="button" onclick="addItem('avariados')">Adicionar</button></div>
+    <div class="items-list" id="lista-avariados"></div></div></div>
+  <div class="ck"><div class="n">4</div><div><h5>Embalagem avariada <span>(opcional)</span></h5>
+    <div class="add-row"><div><label class="f">Código</label><input id="emb-codigo" placeholder="Código" oninput="autoDesc('emb')"></div>
+      <div><label class="f">Descrição</label><input id="emb-desc" placeholder="Descrição" readonly></div>
+      <div><label class="f">Qtd avariada</label><input id="emb-qtd" type="number" min="1" value="1"></div>
+      <div><label class="f">Tem troca?</label><input id="emb-troca" type="number" min="0" value="0" title="Quantas unidades já têm embalagem nova pronta para troca"></div>
+      <button type="button" onclick="addItem('embalagem')">Adicionar</button></div>
+    <div class="hint">Em "Tem troca?" informe quantas unidades já têm embalagem nova. O resto fica como aguardando embalagem.</div>
+    <div class="items-list" id="lista-embalagem"></div></div></div>
+  <div class="ck"><div class="n">5</div><div><h5>Observação <span>(opcional)</span></h5><textarea id="rc-obs" style="margin:0"></textarea></div></div>
+  <div class="modal-actions"><button class="secondary" onclick="fechar('ov-receb')">Cancelar</button><button id="rc-salvar" onclick="salvarRecebimento()">Salvar recebimento</button></div>
+</div></div>
+
+<!-- MODAL: REABRIR -->
+<div class="overlay" id="ov-reabrir"><div class="modal" style="max-width:540px">
+  <h2>Reabrir recebimento</h2><div class="info" id="rb-info"></div>
+  <span class="link" id="rb-toggle" onclick="rbPrev()">Ver o que já foi adicionado ▸</span><div id="rb-prev" style="display:none;margin-top:8px"></div>
+  <div class="modal-actions"><button class="secondary" onclick="fechar('ov-reabrir')">Cancelar</button><button class="warn" onclick="reabrirOk('limpar')">Limpar e iniciar do zero</button><button onclick="reabrirOk('manter')">Manter dados</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SUPABASE_URL = 'https://fevhyllvfhvzzfhwyjuk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzEyMTcsImV4cCI6MjA5NDQ0NzIxN30.GJRgEKW1bVWX1957_bKCTO6aVmR_rXWRCmo9-ZJDPiE';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- utilidades ---------- */
+const $ = id => document.getElementById(id);
+window.$ = $;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
+function hoje(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtData(d){ if(!d) return '·'; const [y,m,day]=String(d).slice(0,10).split('-'); return `${day}/${m}/${y}`; }
+function diasEntre(a,b){ return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5); }
+window.fechar = id => $(id).classList.remove('show');
+const ABREV = {Infraestrutura:'Infra', Merchandising:'Merch'};
+function setoresDe(m){ return Array.isArray(m.distribuicao_setores) ? m.distribuicao_setores : []; }
+function geralDe(m){ const t=Number(m.volumes_esperados)||0; if(!t) return null; return t - setoresDe(m).reduce((a,b)=>a+Number(b.quantidade||0),0); }
+function nomeDe(m){ return (m.destino_nome && !m.destino_nome.includes('Selecione')) ? m.destino_nome : (m.loja || 'Destino não informado'); }
+
+async function checaSchema(){
+  const { error } = await supabase.from('movimentos').select('origem,volumes_recebidos').limit(1);
+  if(error) $('aviso').innerHTML = `<div class="aviso"><b>Falta atualizar o banco.</b> Rode o arquivo <code>migracao-devolucao.sql</code> no SQL Editor do Supabase (cria as colunas "origem" e "volumes_recebidos") e recarregue esta página.</div>`;
+}
+
+/* ================= LISTA PRINCIPAL ================= */
+let ABERTOS = [];
+const COLS = 'id,numero_movimento,loja,estado,destino_nome,prazo,status,origem,volumes_esperados,distribuicao_setores,observacao_gestor,data_chegada,data_atraso_informada,itens_movimento(quantidade)';
+
+async function loadAbertos(){
+  const { data, error } = await supabase.from('movimentos').select(COLS).in('status',['AGUARDANDO','ATRASADO','CHEGOU']).order('prazo');
+  if(error){ $('lista').innerHTML=`<div class="empty">Erro ao carregar: ${esc(error.message)}</div>`; return; }
+  ABERTOS = data || []; desenha();
+}
+const fase = m => m.status==='AGUARDANDO' ? 'chegada' : 'recebimento';
+
+function cartao(m){
+  const itens=m.itens_movimento||[], un=itens.reduce((a,b)=>a+Number(b.quantidade||0),0), vol=Number(m.volumes_esperados)||0, h=hoje();
+  const f=fase(m), atr = f==='chegada' && m.prazo<h, dias = atr ? diasEntre(m.prazo,h) : 0;
+  const cor = f==='recebimento' ? 'blue' : atr ? 'bad' : '';
+  const ss=setoresDe(m), g=geralDe(m);
+  const chips = vol ? `<span class="v"><b>${vol}</b> volume${vol>1?'s':''}</span>${g!=null?`<span class="v s">Estoque Geral ${g}</span>`:''}${ss.map(s=>`<span class="v s">${esc(ABREV[s.setor]||s.setor)} ${esc(s.quantidade)}</span>`).join('')}` : '';
+  const chegada = m.data_chegada || m.data_atraso_informada;
+  const meta = f==='recebimento' ? `<span>Chegou em ${fmtData(chegada)}</span>` : `<span>Prazo ${fmtData(m.prazo)}${atr?` · <b style="color:var(--bad)">${dias} dia${dias>1?'s':''} de atraso</b>`:''}</span>`;
+  const cta = f==='chegada'
+    ? `<div class="cta ${atr?'bad':''}" onclick="abrirChegada('${m.id}')">CONFIRMAR CHEGADA<small>Informe a data em que chegou</small></div>`
+    : `<div class="cta blue" onclick="abrirRecebimento('${m.id}')">DAR RECEBIMENTO<small>Conferir volumes, avarias e embalagem</small></div>`;
+  return `<div class="mc ${cor}"><div>
+    <h3>${esc(nomeDe(m))} <span class="pill p-gray">Mov. ${esc(m.numero_movimento)}</span></h3>
+    <div class="meta">${meta}<span>${itens.length} ${itens.length===1?"item":"itens"} · ${un} un.</span></div>
+    <div class="vs">${chips}</div>
+    ${m.observacao_gestor?`<div class="obs"><b>Obs. do gestor:</b> ${esc(m.observacao_gestor)}</div>`:''}
+    <span class="link" onclick="verItens('${m.id}',this)">Ver itens deste movimento ▸</span><div id="it-${m.id}" style="display:none;margin-top:8px"></div>
+  </div>${cta}</div>`;
+}
+window.desenha = function(){
+  const t=($('busca').value||'').trim().toLowerCase(), h=hoje();
+  const l=ABERTOS.filter(m=>!t || String(m.numero_movimento).toLowerCase().includes(t) || nomeDe(m).toLowerCase().includes(t) || String(m.loja||'').toLowerCase().includes(t));
+  const A=l.filter(m=>fase(m)==='chegada'&&m.prazo<h), H=l.filter(m=>fase(m)==='chegada'&&m.prazo===h), P=l.filter(m=>fase(m)==='chegada'&&m.prazo>h), R=l.filter(m=>fase(m)==='recebimento');
+  const k=(f)=>ABERTOS.filter(f).length;
+  $('k-atraso').textContent=k(m=>fase(m)==='chegada'&&m.prazo<h); $('k-hoje').textContent=k(m=>fase(m)==='chegada'&&m.prazo===h); $('k-chegaram').textContent=k(m=>fase(m)==='recebimento');
+  const sec=(titulo,arr,cls)=>arr.length?`<div class="sec">${titulo} <em class="${cls||''}">${arr.length}</em></div>${arr.map(cartao).join('')}`:'';
+  const html = sec('Atrasados',A,'bad')+sec('Chegam hoje',H)+sec('Chegaram: falta dar recebimento',R,'blue')+sec('Próximos dias',P);
+  $('lista').innerHTML = html || `<div class="empty">${t?'Nada encontrado para essa busca.':'Nenhuma devolução aguardando no momento.'}</div>`;
+};
+window.verItens = async function(id,el){
+  const box=$('it-'+id), abre=box.style.display==='none'; box.style.display=abre?'block':'none'; el.textContent=abre?'Ocultar itens ▾':'Ver itens deste movimento ▸';
+  if(!abre||box.dataset.ok) return; box.innerHTML='Carregando…';
+  const { data } = await supabase.from('itens_movimento').select('codigo,descricao,quantidade').eq('movimento_id',id).order('codigo');
+  box.dataset.ok=1; box.innerHTML = `<table><thead><tr><th>Código</th><th>Descrição</th><th>Quantidade</th></tr></thead><tbody>${(data||[]).map(i=>`<tr><td>${esc(i.codigo)}</td><td>${esc(i.descricao||'·')}</td><td>${esc(i.quantidade)}</td></tr>`).join('')}</tbody></table>`;
+};
+
+/* ================= CONFIRMAR CHEGADA ================= */
+let CUR=null;
+window.abrirChegada = function(id){
+  const m=ABERTOS.find(x=>x.id===id); if(!m) return; CUR=m;
+  $('ch-info').innerHTML = `Movimento <b>${esc(m.numero_movimento)}</b> · ${esc(nomeDe(m))} · prazo ${fmtData(m.prazo)}`+(m.prazo<hoje()?' · <b style="color:var(--bad)">em atraso</b>':'');
+  $('ch-data').value=hoje(); $('ov-chegada').classList.add('show');
+};
+window.confirmarChegada = async function(){
+  const d=$('ch-data').value; if(!d) return alert('Informe a data em que a mercadoria chegou.');
+  const { data:at } = await supabase.from('movimentos').select('prazo,historico').eq('id',CUR.id).single();
+  const linha = `· Chegada confirmada em ${fmtData(d)}` + (d>at.prazo?` (prazo era ${fmtData(at.prazo)}).`:'.');
+  const { error } = await supabase.from('movimentos').update({ status:'CHEGOU', data_chegada:d, data_atraso_informada:d, historico:at.historico?at.historico+'\n'+linha:linha, updated_at:new Date().toISOString() }).eq('id',CUR.id);
+  if(error) return alert(error.message);
+  toast('Chegada confirmada. Agora é só dar o recebimento.'); fechar('ov-chegada'); loadAbertos();
+};
+
+/* ================= RECEBIMENTO (movimento do gestor ou avulso) ================= */
+const catalogoCache={};
+async function buscarDescricao(c){ if(catalogoCache[c]!==undefined) return catalogoCache[c]; const { data } = await supabase.from('itens_catalogo').select('descricao').eq('codigo',c).maybeSingle(); return catalogoCache[c]=data?.descricao||'(sem cadastro no catálogo)'; }
+const _t={}; window.autoDesc = function(p){ clearTimeout(_t[p]); _t[p]=setTimeout(async()=>{ const c=$(p+'-codigo').value.trim(), f=$(p+'-desc'); if(!c){ f.value=''; return; } f.value='Buscando…'; f.value=await buscarDescricao(c); },350); };
+let AVARIADOS=[], EMBALAGEM=[], MODO='receber', EDITID=null, ESP=null, DESTS=[], AVDUP=false;
+window.addItem = async function(campo){
+  const p=campo==='avariados'?'av':'emb', codigo=$(p+'-codigo').value.trim(), qtd=Number($(p+'-qtd').value)||1;
+  if(!codigo) return alert('Informe o código do item.');
+  let item={codigo, descricao:await buscarDescricao(codigo), quantidade:qtd};
+  if(campo==='avariados'){ item.ajustado=$('av-aj').value; $('av-aj').value='NAO'; AVARIADOS.push(item); }
+  else { const troca=Number($('emb-troca').value)||0; item.quantidade_troca=troca; item.quantidade_pendente=Math.max(qtd-troca,0); $('emb-troca').value='0'; EMBALAGEM.push(item); }
+  $(p+'-codigo').value=''; $(p+'-desc').value=''; $(p+'-qtd').value='1'; $(p+'-codigo').focus(); listaItens(campo);
+};
+window.rmItem = function(campo,i){ (campo==='avariados'?AVARIADOS:EMBALAGEM).splice(i,1); listaItens(campo); };
+function listaItens(campo){
+  const l=campo==='avariados'?AVARIADOS:EMBALAGEM, el=$('lista-'+campo);
+  if(!l.length){ el.innerHTML='<div class="empty-mini">Nenhum item adicionado ainda.</div>'; return; }
+  el.innerHTML='<table><tbody>'+l.map((it,i)=>`<tr><td><b>${esc(it.codigo)}</b></td><td style="${it.descricao.includes('sem cadastro')?'color:var(--bad)':''}">${esc(it.descricao)}</td>
+    <td>${esc(it.quantidade)}${campo==='embalagem'?' avariada(s)':''}</td>
+    <td>${campo==='avariados'?(it.ajustado==='SIM'?'<span style="color:var(--ok);font-weight:700">Ajustado</span>':'<span style="color:var(--warn);font-weight:700">Não ajustado</span>'):(it.quantidade_pendente>0?`<span style="color:var(--warn);font-weight:700">${esc(it.quantidade_pendente)} aguardando embalagem</span>`:'<span style="color:var(--ok);font-weight:700">Troca completa</span>')}</td>
+    <td class="rm" onclick="rmItem('${campo}',${i})">✕</td></tr>`).join('')+'</tbody></table>';
+}
+function limpaCampos(){ ['av','emb'].forEach(p=>{ $(p+'-codigo').value=''; $(p+'-desc').value=''; $(p+'-qtd').value='1'; }); $('av-aj').value='NAO'; $('emb-troca').value='0'; }
+window.volConf = function(){
+  const r=$('rc-vol-res'), v=$('rc-vol').value;
+  if(MODO!=='receber' || ESP==null || v===''){ r.textContent=''; return; }
+  const n=Number(v), d=n-ESP;
+  r.className = d===0 ? 'okl' : 'badl';
+  r.textContent = d===0 ? '✓ Confere' : d<0 ? `Faltam ${-d} volume${-d>1?'s':''}` : `${d} volume${d>1?'s':''} a mais que o esperado`;
+};
+
+window.abrirRecebimento = async function(id){
+  MODO='receber'; EDITID=id; limpaCampos();
+  const { data:m } = await supabase.from('movimentos').select('numero_movimento,loja,destino_nome,volumes_esperados,volumes_recebidos,itens_avariados,itens_embalagem_avariada,observacao_recebimento,data_recebimento,data_chegada,data_atraso_informada').eq('id',id).single();
+  if(!m) return alert('Movimento não encontrado.');
+  ESP = Number(m.volumes_esperados)||null; CUR={id,...m};
+  $('rc-titulo').textContent='Dar recebimento · Mov. '+m.numero_movimento;
+  const ch=m.data_chegada||m.data_atraso_informada;
+  $('rc-info').textContent = `${nomeDe(m)}${ch?' · chegou em '+fmtData(ch):''}`;
+  $('rc-avulso').style.display='none';
+  $('rc-data').value=m.data_recebimento||hoje(); $('rc-obs').value=m.observacao_recebimento||'';
+  $('rc-vol-pre').textContent='Chegaram'; $('rc-vol-pos').textContent = ESP!=null ? `de ${ESP} esperados` : 'volumes';
+  $('rc-vol').value = m.volumes_recebidos ?? (ESP ?? '');
+  AVARIADOS=Array.isArray(m.itens_avariados)?[...m.itens_avariados]:[]; EMBALAGEM=Array.isArray(m.itens_embalagem_avariada)?[...m.itens_embalagem_avariada]:[];
+  listaItens('avariados'); listaItens('embalagem'); volConf();
+  $('ov-receb').classList.add('show');
+};
+
+/* ---- avulso: recebimento de loja que não passou pelo gestor ---- */
+async function carregaDests(){ if(DESTS.length) return; const { data } = await supabase.from('catalogo_destinos').select('id,filial,destino,uf').order('destino'); DESTS=data||[]; }
+window.abrirAvulso = async function(id){
+  MODO='avulso'; EDITID=id||null; ESP=null; limpaCampos(); AVDUP=false; await carregaDests();
+  $('av-pdv').innerHTML='<option value="">Selecione…</option>'+DESTS.map(d=>`<option value="${esc(d.id)}">${esc(d.destino)} (${esc(d.filial)})</option>`).join('')+'<option value="__outro">Outro (digitar o nome)</option>';
+  $('av-outro').style.display='none'; $('av-outro').value=''; $('av-dup').textContent='';
+  $('rc-avulso').style.display='block'; $('rc-vol-pre').textContent='Volumes recebidos'; $('rc-vol-pos').textContent=''; $('rc-vol-res').textContent='';
+  let m=null;
+  if(id){ const r=await supabase.from('movimentos').select('*').eq('id',id).single(); m=r.data; }
+  $('rc-titulo').textContent = id ? 'Editar recebimento lançado pelo estoque' : 'Adicionar recebimento';
+  $('rc-info').textContent = 'Para devoluções que chegam de lojas e não foram cadastradas pelo gestor. Fica no histórico "Lançados pelo estoque".';
+  $('av-num').value=m?m.numero_movimento:''; $('rc-data').value=m?m.data_recebimento:hoje(); $('rc-obs').value=m?.observacao_recebimento||''; $('rc-vol').value=m?.volumes_recebidos??'';
+  if(m){ const d=DESTS.find(x=>x.destino===m.destino_nome&&x.filial===m.loja); if(d) $('av-pdv').value=d.id; else { $('av-pdv').value='__outro'; $('av-outro').style.display='block'; $('av-outro').value=m.destino_nome||m.loja||''; } }
+  AVARIADOS=Array.isArray(m?.itens_avariados)?[...m.itens_avariados]:[]; EMBALAGEM=Array.isArray(m?.itens_embalagem_avariada)?[...m.itens_embalagem_avariada]:[];
+  listaItens('avariados'); listaItens('embalagem'); $('ov-receb').classList.add('show');
+};
+window.avPdv = function(){ $('av-outro').style.display = $('av-pdv').value==='__outro' ? 'block' : 'none'; };
+let _ad; window.avNum = function(){
+  const n=$('av-num').value.trim(), el=$('av-dup'); AVDUP=false; el.textContent=''; clearTimeout(_ad); if(!n) return;
+  _ad=setTimeout(async()=>{ let q=supabase.from('movimentos').select('id,origem,status',{count:'exact'}).eq('numero_movimento',n); const { data } = await q;
+    const outros=(data||[]).filter(x=>x.id!==EDITID); if($('av-num').value.trim()!==n) return;
+    AVDUP=outros.length>0; el.className='hint '+(AVDUP?'bad':'ok');
+    el.textContent = AVDUP ? 'Esse número já existe no sistema. Se foi o gestor que cadastrou, use o cartão dele na lista.' : '✓ Número novo.'; },350);
+};
+
+window.salvarRecebimento = async function(){
+  const data_recebimento=$('rc-data').value; if(!data_recebimento) return alert('Preencha a data do recebimento em sistema.');
+  const volTxt=$('rc-vol').value, volumes_recebidos = volTxt===''?null:Number(volTxt), obs=$('rc-obs').value.trim()||null, agora=new Date().toISOString();
+  const b=$('rc-salvar'); b.disabled=true;
+  try{
+    if(MODO==='receber'){
+      let hist=null;
+      if(ESP!=null && volumes_recebidos!=null && volumes_recebidos!==ESP){
+        if(!confirm(`Você informou ${volumes_recebidos} volume(s), mas eram esperados ${ESP}. Salvar mesmo assim?`)) return;
+        const r=await supabase.from('movimentos').select('historico').eq('id',EDITID).single();
+        const linha=`· Recebimento com divergência de volumes: esperados ${ESP}, chegaram ${volumes_recebidos}.`; hist=r.data?.historico?r.data.historico+'\n'+linha:linha;
+      }
+      const patch={ status:'RECEBIDO', data_recebimento, volumes_recebidos, itens_avariados:AVARIADOS, itens_embalagem_avariada:EMBALAGEM, observacao_recebimento:obs, updated_at:agora };
+      if(hist) patch.historico=hist;
+      const { error } = await supabase.from('movimentos').update(patch).eq('id',EDITID); if(error) throw error;
+      toast('Recebimento registrado'); fechar('ov-receb'); loadAbertos(); if(histAberto) loadHist(); return;
+    }
+    const numero=$('av-num').value.trim(); if(!numero) return alert('Informe o número do movimento.');
+    if(AVDUP && !confirm('Já existe um movimento com esse número. Lançar mesmo assim?')) return;
+    const sel=$('av-pdv').value; if(!sel) return alert('Escolha o ponto de venda de origem.');
+    let loja='', destino_nome='', estado='';
+    if(sel==='__outro'){ destino_nome=$('av-outro').value.trim(); if(!destino_nome) return alert('Digite o nome do ponto de venda.'); loja=destino_nome; }
+    else { const d=DESTS.find(x=>String(x.id)===sel); loja=d.filial; destino_nome=d.destino; estado=d.uf; }
+    const linha=`· Lançado direto pelo estoque em ${fmtData(hoje())}.`;
+    const campos={ numero_movimento:numero, loja, destino_nome, estado, status:'RECEBIDO', origem:'estoque', prazo:data_recebimento, data_chegada:data_recebimento, data_recebimento,
+      volumes_recebidos, itens_avariados:AVARIADOS, itens_embalagem_avariada:EMBALAGEM, observacao_recebimento:obs, updated_at:agora };
+    const r = EDITID ? await supabase.from('movimentos').update(campos).eq('id',EDITID) : await supabase.from('movimentos').insert({...campos, historico:linha, distribuicao_setores:[]});
+    if(r.error) throw r.error;
+    toast(EDITID?'Recebimento atualizado':'Recebimento adicionado'); fechar('ov-receb');
+    if(!histAberto) toggleHist(); abaHist('estoque');
+  }catch(e){ alert(e.message||e); }
+  finally{ b.disabled=false; }
+};
+
+/* ================= HISTÓRICO (duas abas) ================= */
+let histAberto=false, ABA='gestor', HROWS=[];
+window.toggleHist = function(){ histAberto=!histAberto; $('hist-b').classList.toggle('show',histAberto); $('hist-seta').textContent=histAberto?'Ocultar ▾':'Ver ▸'; if(histAberto) loadHist(); };
+window.abaHist = function(a){ ABA=a; $('aba-gestor').classList.toggle('on',a==='gestor'); $('aba-estoque').classList.toggle('on',a==='estoque'); $('hist-q').value=''; loadHist(); };
+let _hb; window.histBusca = function(){ clearTimeout(_hb); _hb=setTimeout(loadHist,300); };
+async function loadHist(){
+  let q=supabase.from('movimentos').select('*, itens_movimento(quantidade)').eq('status','RECEBIDO').order('data_recebimento',{ascending:false}).limit(30);
+  q = ABA==='estoque' ? q.eq('origem','estoque') : q.or('origem.is.null,origem.eq.gestor');
+  const t=($('hist-q').value||'').replace(/[,()%*\\]/g,' ').trim(); if(t) q=q.or(`numero_movimento.ilike.%${t}%,destino_nome.ilike.%${t}%,loja.ilike.%${t}%`);
+  const { data, error } = await q; HROWS=data||[];
+  if(error){ $('hist-lista').innerHTML=`<div class="empty">Erro: ${esc(error.message)}</div>`; return; }
+  const prod=HROWS.reduce((a,m)=>a+(m.itens_movimento||[]).length,0), un=HROWS.reduce((a,m)=>a+(m.itens_movimento||[]).reduce((x,y)=>x+Number(y.quantidade||0),0),0);
+  $('hist-stats').textContent = HROWS.length ? `${HROWS.length} movimento(s) listado(s)${ABA==='gestor'?` · ${prod} produtos · ${un} unidades`:''}` : '';
+  $('hist-lista').innerHTML = HROWS.length ? HROWS.map(hRow).join('') : `<div class="empty">${ABA==='estoque'?'Nenhum recebimento lançado pelo estoque ainda.':'Nenhuma devolução recebida ainda.'}</div>`;
+}
+function tabItens(l,t){ return l&&l.length?`<table><thead><tr><th>Código</th><th>Descrição</th><th>Qtd</th><th>Situação</th></tr></thead><tbody>${l.map(i=>`<tr><td><b>${esc(i.codigo)}</b></td><td>${esc(i.descricao||'·')}</td><td>${esc(i.quantidade)}</td><td>${t==='av'?(i.ajustado==='SIM'?'<span style="color:var(--ok);font-weight:700">Ajustado</span>':'<span style="color:var(--warn);font-weight:700">Não ajustado</span>'):((i.quantidade_pendente||0)>0?`<span style="color:var(--warn);font-weight:700">${esc(i.quantidade_pendente)} aguardando embalagem</span>`:'<span style="color:var(--ok);font-weight:700">Troca completa</span>')}</td></tr>`).join('')}</tbody></table>`:'<div style="margin:4px 0">Nenhum registro.</div>'; }
+function hRow(m){
+  const ch=m.data_chegada||m.data_atraso_informada, av=(m.itens_avariados||[]).length, emb=(m.itens_embalagem_avariada||[]).length;
+  const acoes = m.origem==='estoque' ? `<button class="secondary small" onclick="event.stopPropagation();abrirAvulso('${m.id}')">Editar</button><button class="danger small" onclick="event.stopPropagation();excluirAvulso('${m.id}')">Excluir</button>` : `<button class="secondary small" onclick="event.stopPropagation();reabrir('${m.id}')">Reabrir</button>`;
+  return `<div class="hrow"><div class="hrow-top" onclick="$('hd-${m.id}').classList.toggle('show')"><div><h4>${esc(nomeDe(m))} <span class="pill p-gray">Mov. ${esc(m.numero_movimento)}</span> ${m.origem==='estoque'?'<span class="pill p-ac">Lançado pelo estoque</span>':''}</h4>
+    <div class="meta"><span>Recebido em ${fmtData(m.data_recebimento)}</span>${ch&&m.origem!=='estoque'?`<span>chegou em ${fmtData(ch)}</span>`:''}${m.volumes_recebidos!=null?`<span>${esc(m.volumes_recebidos)} volume(s)</span>`:''}${av?`<span>${av} avaria(s)</span>`:''}${emb?`<span>${emb} embalagem avariada</span>`:''}</div></div><div style="display:flex;gap:6px">${acoes}</div></div>
+    <div class="hdet" id="hd-${m.id}">${m.observacao_recebimento?`<div class="obs">Obs: ${esc(m.observacao_recebimento)}</div>`:''}${m.historico?`<p style="margin:8px 0">${esc(m.historico).split('\n').join('<br>')}</p>`:''}
+    <p style="margin:10px 0 2px"><b>Itens avariados</b></p>${tabItens(m.itens_avariados,'av')}<p style="margin:10px 0 2px"><b>Itens com embalagem avariada</b></p>${tabItens(m.itens_embalagem_avariada,'emb')}</div></div>`;
+}
+window.excluirAvulso = async function(id){
+  if(!confirm('Excluir este recebimento lançado pelo estoque? Ação irreversível.')) return;
+  const { error } = await supabase.from('movimentos').delete().eq('id',id).eq('origem','estoque'); if(error) return alert(error.message);
+  toast('Recebimento excluído'); loadHist();
+};
+
+/* ---- reabrir (movimentos do gestor) ---- */
+let REAB=null;
+window.reabrir = async function(id){
+  const { data:m } = await supabase.from('movimentos').select('numero_movimento,data_recebimento,observacao_recebimento,itens_avariados,itens_embalagem_avariada').eq('id',id).single(); REAB=id;
+  const av=m?.itens_avariados||[], emb=m?.itens_embalagem_avariada||[];
+  if(!av.length&&!emb.length&&!m?.observacao_recebimento){ await reabrirOk('manter'); return; }
+  $('rb-info').innerHTML=`Movimento <b>${esc(m.numero_movimento)}</b> · recebido em ${fmtData(m.data_recebimento)}.<br>Você adicionou dados nesse recebimento. Manter ou limpar e iniciar do zero?`;
+  $('rb-prev').style.display='none'; $('rb-toggle').textContent='Ver o que já foi adicionado ▸';
+  $('rb-prev').innerHTML=`<p style="margin:6px 0 2px"><b>Itens avariados</b></p>${tabItens(av,'av')}<p style="margin:10px 0 2px"><b>Embalagem avariada</b></p>${tabItens(emb,'emb')}${m.observacao_recebimento?`<div class="obs">Obs: ${esc(m.observacao_recebimento)}</div>`:''}`;
+  $('ov-reabrir').classList.add('show');
+};
+window.rbPrev = function(){ const el=$('rb-prev'), a=el.style.display==='none'; el.style.display=a?'block':'none'; $('rb-toggle').textContent=a?'Ocultar o que já foi adicionado ▾':'Ver o que já foi adicionado ▸'; };
+window.reabrirOk = async function(modo){
+  if(!REAB) return; const patch={ status:'CHEGOU', data_recebimento:null, updated_at:new Date().toISOString() };
+  if(modo==='limpar'){ patch.itens_avariados=[]; patch.itens_embalagem_avariada=[]; patch.observacao_recebimento=null; patch.volumes_recebidos=null; }
+  const { error } = await supabase.from('movimentos').update(patch).eq('id',REAB); if(error) return alert(error.message);
+  toast(modo==='limpar'?'Reaberto, dados limpos':'Reaberto, dados mantidos'); fechar('ov-reabrir'); REAB=null; loadAbertos(); if(histAberto) loadHist();
+};
+
+/* ================= RELATÓRIO ================= */
+window.abrirRelatorio = function(){ const b=$('rel-box'); b.style.display=b.style.display==='none'?'block':'none'; };
+window.baixarRelatorioMensal = async function(){
+  const mes=$('in-mes-relatorio').value; if(!mes) return alert('Selecione o mês.');
+  const [ano,mn]=mes.split('-').map(Number), ini=mes+'-01', fim=mn===12?`${ano+1}-01-01`:`${ano}-${String(mn+1).padStart(2,'0')}-01`;
+  const { data:movs } = await supabase.from('movimentos').select('*, itens_movimento(quantidade)').eq('status','RECEBIDO').gte('data_recebimento',ini).lt('data_recebimento',fim).order('data_recebimento');
+  if(!movs||!movs.length) return alert('Nenhuma devolução recebida nesse mês.');
+  const linhas=movs.map(m=>({ 'Movimento':m.numero_movimento,'Origem':m.origem==='estoque'?'Lançado pelo estoque':'Cadastrado pelo gestor','Filial':m.loja,'Destino':m.destino_nome||'','UF':m.estado,
+    'Data recebimento':fmtData(m.data_recebimento),'Volumes esperados':m.volumes_esperados||'','Volumes recebidos':m.volumes_recebidos??'',
+    'Distribuição por setor':setoresDe(m).map(s=>`${s.setor}: ${s.quantidade}`).join(', '),'Itens (tipos)':(m.itens_movimento||[]).length,'Unidades totais':(m.itens_movimento||[]).reduce((a,b)=>a+Number(b.quantidade),0),
+    'Itens avariados':(m.itens_avariados||[]).length,'Itens embalagem avariada':(m.itens_embalagem_avariada||[]).length,'Pendente troca embalagem':(m.itens_embalagem_avariada||[]).reduce((a,b)=>a+Number(b.quantidade_pendente||0),0),'Observação recebimento':m.observacao_recebimento||'' }));
+  const ws=XLSX.utils.json_to_sheet(linhas), wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Devoluções'); XLSX.writeFile(wb,`relatorio-devolucoes-${mes}.xlsx`);
+};
+
+/* ================= INÍCIO ================= */
+checaSchema(); loadAbertos();
+let _rt; supabase.channel('devolucao-estoque-realtime').on('postgres_changes',{event:'*',schema:'public',table:'movimentos'},()=>{ clearTimeout(_rt); _rt=setTimeout(()=>{ if(!document.querySelector('.overlay.show')){ loadAbertos(); if(histAberto) loadHist(); } },900); }).subscribe();
+</script>
+</body>
+</html>
